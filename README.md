@@ -74,13 +74,16 @@ Until then `/healthz` returns 200 and `/readyz` returns 503 naming the database 
 | Piece | Status |
 |---|---|
 | Design docs (5) + `db/schema.sql` | Written |
-| `packages/domain/money.py` | **91 tests passing** |
+| `packages/domain/money.py` | **No float path in or out** |
+| `packages/domain/` — enums, canonical model, 6 normalisers | **Enums verified against `schema.sql`; all 714 generated rows normalise** |
 | `backend/` — app factory, config, DB session, health, problem+json errors | **Runs on :8000** |
 | `backend/alembic/` — migration 0001 applies `db/schema.sql` | Written, **never executed** (no Postgres yet) |
 | `frontend/` — exceptions queue, case detail | **Builds; verified in light and dark** |
-| `data/synthetic/` — generator + 12-type anomaly injector | **108 tests total; deterministic; see below** |
+| `data/synthetic/` — generator + 12-type anomaly injector | **Deterministic; every anomaly type verified to fire** |
 | Auth, imports, runs, matching engine, AI investigation | Not built |
 | Evaluation harness (reads the generator's ground truth) | Not built |
+
+**189 tests passing**, lint clean.
 
 The frontend currently reads `frontend/src/fixtures/cases.ts`, not the API. That file is deleted the moment `GET /v1/exceptions` exists.
 
