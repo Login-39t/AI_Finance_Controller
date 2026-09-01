@@ -27,7 +27,7 @@ A fourth filter runs underneath all three: **does it help the system show its wo
 | Background work | **FastAPI `BackgroundTasks`** + DB-persisted run state | — | Zero infra. ARQ + Redis is a documented one-file upgrade. |
 | Matching | **Pure Python + SQLAlchemy Core + Polars** | Polars 1.x | Deterministic rules as set-based SQL; Polars only for the generator and eval harness. |
 | Auth | **fastapi-users** + Argon2 + JWT access + httpOnly refresh cookie | 14.x | Full auth stack — register, verify, login, refresh, reset — as mounted routers, in hours. |
-| AI | **Anthropic SDK, `claude-opus-5`**, structured outputs | 1.x | `messages.parse()` returns a validated Pydantic object; schema violations fail loudly. |
+| AI | **Provider-neutral**, schema-constrained JSON. Default `gemini-2.5-flash` (free tier) | — | The architecture distrusts the model, so provider is config. Free tiers suffice; Bedrock is not free. |
 | Testing | **pytest + httpx + testcontainers**, Vitest, Playwright | — | Golden-file rule tests and the eval harness are the credibility of the whole submission. |
 | Local deploy | **Docker Compose** | — | `docker compose up` → Postgres + API + web. Two services, one command. |
 | Hosted deploy | **Render (API + Postgres) + Vercel (web)** | — | `render.yaml` is infrastructure-as-code; Vercel is Next.js's home turf. Same Dockerfile both ways. |
@@ -235,17 +235,38 @@ REST also gives you two things this product specifically needs: **HTTP caching s
 
 ---
 
-## 6. AI — Anthropic SDK, `claude-opus-5`, structured outputs
+## 6. AI — provider-neutral, schema-constrained JSON
 
-### Model
+### The requirement, stated before the vendor
 
-**`claude-opus-5`** for investigation and classification. The task — read an evidence packet, classify into a taxonomy, rank hypotheses, cite only what it was given, state its uncertainties — is a reasoning task where the failure mode is a plausible wrong answer. That is exactly where model quality converts directly into the metric you are being judged on.
+The investigation layer needs exactly one capability: **JSON generation constrained to a schema**. Read an evidence packet, classify into the 8-value taxonomy, rank hypotheses, cite only what it was given, state its uncertainties.
 
-Volume makes this cheap regardless: you call the model **per exception case, on demand**, not per record. A demo run produces tens of cases, each a packet of a few thousand tokens. The entire demo costs cents.
+Volume is trivial. The model is called **per exception case, on demand**, not per record. A demo run opens tens of cases at a few thousand tokens each — call it 100–150k tokens for an entire demo, which sits inside every free tier below with room to spare.
 
-*If you later want a cost lever:* `claude-haiku-4-5` is a reasonable option for bulk pre-classification, with `claude-opus-5` reserved for the cases actually opened. Do not start there — measure first, and only trade quality for cost once you can see what it costs you.
+### Why the model does not have to be a frontier model
+
+This is the consequence of a design decision made much earlier, and it is worth stating plainly because it inverts the usual calculus.
+
+`verify.py` checks every citation against the packet and every number against what the engine computed. `policy.py` gates resolution on six deterministic conditions and reads none of the model's output. The model contributes **prose and a label, never an outcome** — there is no code path from a model response to a money column or a group status.
+
+So the failure mode of a weaker model here is *a less insightful paragraph*, not *a wrong reconciliation*. Model choice is a cost and latency decision, not a correctness one. A system that needed a frontier model to stay correct would have the guardrails in the wrong place.
+
+### The provider is configuration
+
+`AI_PROVIDER` selects the adapter; `packages/ai_investigation/client.py` implements a small protocol behind it. Nothing else in the codebase knows which vendor is wired in, and `verify.py` is entirely provider-agnostic.
+
+| Provider | Free tier | Schema enforcement | Notes |
+|---|---|---|---|
+| `gemini` **(default)** | Yes, no card. Flash models only | Native `responseSchema`, constrained decoding | 1M context, high TPM. Pro tier is not free. |
+| `groq` | Yes, no card. 30 RPM / 14.4k RPD | Strict `json_schema` on *supported models only* | Fastest inference; check per-model support before relying on it. |
+| `openai_compatible` | Varies | Varies | Cerebras, OpenRouter, Together, vLLM. Needs `AI_BASE_URL`. |
+| `ollama` | Free, local, offline | Format-constrained | Demo insurance when the venue wifi fails. Needs `AI_BASE_URL`. |
+
+**Deliberately not used: AWS Bedrock.** It has no permanent free tier — inference is pay-as-you-go from the first call, and the $200 new-account credit is a six-month trial, not a free tier. It also adds an AWS account, IAM, and region configuration to a four-day build. It is the right answer for enterprise compliance or for running Claude specifically, and the wrong answer here.
 
 ### Structured outputs, not prompt-and-hope
+
+The schema is one Pydantic model, shared across every provider adapter:
 
 ```python
 class Hypothesis(BaseModel):
@@ -258,19 +279,13 @@ class Investigation(BaseModel):
     hypotheses: list[Hypothesis]
     recommended_action: str
     requires_human_approval: bool
-    confidence: float = Field(ge=0, le=1)
+    confidence: float = Field(ge=0, le=1)   # advisory; never reaches the gate
     uncertainties: list[str]
-
-response = client.messages.parse(
-    model="claude-opus-5",
-    max_tokens=4096,
-    messages=[{"role": "user", "content": packet_json}],
-    output_format=Investigation,
-)
-investigation = response.parsed_output      # a validated Investigation
 ```
 
-`messages.parse()` constrains generation to the schema and returns a validated Pydantic object. `classification` cannot come back as a type outside the taxonomy; `confidence` cannot come back as `"quite high"`. That satisfies §11.4 of the blueprint — schema validation — **before any of your code runs**.
+Each adapter hands the provider its native constrained-decoding hook — `responseSchema` for Gemini, `response_format={"type": "json_schema", ...}` for Groq and the OpenAI-compatible set — and then validates the result against `Investigation` regardless. The provider's constraint is an optimisation that removes a failure class; the Pydantic validation is the actual guarantee, and it runs even if a provider's enforcement is weak or absent.
+
+`classification` cannot come back as a type outside the taxonomy; `confidence` cannot come back as `"quite high"`. That satisfies §11.4 of the blueprint — schema validation — before any of the grounding checks run.
 
 ### The two checks that must be yours, not the SDK's
 
@@ -337,7 +352,7 @@ services:
 - a Docker web service built from `backend/Dockerfile`, health check on `/healthz`;
 - a managed Postgres instance, `DATABASE_URL` injected;
 - migrations as a pre-deploy command;
-- secrets (`ANTHROPIC_API_KEY`, `JWT_SECRET`) as environment variables, never committed.
+- secrets (`AI_API_KEY`, `JWT_SECRET`) as environment variables, never committed.
 
 **Vercel** for the Next.js app: connect the repo, root directory `frontend`, set `NEXT_PUBLIC_API_URL` to the Render URL.
 

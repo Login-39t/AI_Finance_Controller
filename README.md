@@ -125,4 +125,3 @@ Two pieces of deterministic code carry that claim:
 - **the grounding verifier** (`packages/ai_investigation/verify.py`) — every citation must resolve to a record in the case, and every number must be one the engine computed.
 
 Roughly 160 lines between them. Neither is written yet.
->>>>>>> afab273 (Initial scaffold: design docs, domain money layer, backend skeleton, frontend queue and case detail)

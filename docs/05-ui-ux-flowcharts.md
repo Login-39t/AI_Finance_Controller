@@ -395,7 +395,7 @@ flowchart TD
 
     subgraph d4["DAY 4 — the differentiator"]
         C9 --> D1["ai_investigation: packet + redact"]
-        D1 --> D2["client.py — messages.parse(claude-opus-5)"]
+        D1 --> D2["client.py — schema-constrained JSON"]
         D2 --> D3["verify.py — citations + numerics"]
         D3 --> D4["AiInvestigationPanel"]
         B8 --> D5["tests/evaluation — held-out metrics"]

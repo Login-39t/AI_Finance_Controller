@@ -4,7 +4,7 @@ Every environment variable the service reads is declared here, once.
 
 Secrets have no defaults. A missing `JWT_SECRET` stops the process at
 startup with a clear message rather than at the first login attempt, and a
-missing `ANTHROPIC_API_KEY` stops it at startup *when AI is enabled*
+missing `AI_API_KEY` stops it at startup *when AI is enabled*
 rather than in front of an audience during a demo.
 """
 
@@ -56,18 +56,37 @@ class Settings(BaseSettings):
     ruleset_version: str = "rules@1.4.0"
 
     # -- AI ---------------------------------------------------------------
+    # Provider-neutral on purpose. The investigation layer needs one thing
+    # from a model - schema-constrained JSON - and several providers do
+    # that on a free tier. Naming the vendor in the config would bake a
+    # billing decision into the code, so the provider is data.
+    #
+    # This is cheap to keep flexible precisely because the architecture
+    # already distrusts the model: verify.py checks every citation against
+    # the packet and every number against what the engine computed, and
+    # policy.py gates resolution deterministically. The model contributes
+    # prose and a label, never an outcome - so a smaller free model is a
+    # cost decision here, not a correctness one.
     ai_enabled: bool = False
-    anthropic_api_key: str | None = None
-    ai_model: str = "claude-opus-5"
+    ai_provider: Literal["gemini", "groq", "openai_compatible", "ollama"] = "gemini"
+    ai_api_key: str | None = None
+    ai_model: str = "gemini-2.5-flash"
+    # Only for openai_compatible / ollama; the hosted providers know their own.
+    ai_base_url: str | None = None
     ai_prompt_version: str = "investigate@v1"
+    ai_timeout_seconds: float = 30.0
+    ai_max_retries: int = 1
 
-    @field_validator("anthropic_api_key")
+    @field_validator("ai_api_key")
     @classmethod
     def _key_required_when_ai_enabled(cls, v: str | None, info) -> str | None:
-        if info.data.get("ai_enabled") and not v:
+        # Ollama runs locally with no key, so it is exempt.
+        provider = info.data.get("ai_provider")
+        if info.data.get("ai_enabled") and provider != "ollama" and not v:
             raise ValueError(
-                "AI_ENABLED is true but ANTHROPIC_API_KEY is unset. "
-                "Set the key, or set AI_ENABLED=false to run without investigations."
+                f"AI_ENABLED is true and AI_PROVIDER is {provider!r}, but AI_API_KEY is unset. "
+                "Set the key, set AI_PROVIDER=ollama to run a local model, "
+                "or set AI_ENABLED=false to run without investigations."
             )
         return v
 

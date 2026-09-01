@@ -118,7 +118,7 @@ ledgergraph/
 │       ├── packet.py               # evidence packet assembly
 │       ├── redact.py               # PII → stable pseudonyms, before egress
 │       ├── schemas.py              # Investigation Pydantic model
-│       ├── client.py               # Anthropic call + retry + validation
+│       ├── client.py               # provider adapters + retry + validation
 │       ├── verify.py               # citation + numeric cross-check
 │       └── prompts/v1/             # versioned templates
 │
@@ -172,7 +172,7 @@ flowchart TB
     AII["ai_investigation<br/>packet · redact · verify"]
   end
 
-  EXT["Anthropic API<br/>claude-opus-5"]
+  EXT["LLM provider<br/>gemini · groq · local"]
   DB[("PostgreSQL 16<br/>canonical · groups · cases<br/>evidence · audit · raw bytea")]
 
   UI -- "HTTPS · Bearer access + httpOnly refresh" --> R
@@ -476,7 +476,7 @@ flowchart TD
     O --> P["Analyst opens case"]
     P --> Q["Evidence packet assembled"]
     Q --> Q1["Redact PII → pseudonyms"]
-    Q1 --> Q2["claude-opus-5<br/>structured output"]
+    Q1 --> Q2["LLM provider<br/>schema-constrained JSON"]
     Q2 --> Q3{"Schema valid?<br/>Citations in packet?<br/>Numbers from engine?"}
     Q3 -- no --> Q4["ai_unavailable<br/>deterministic finding stands"]
     Q3 -- yes --> Q5["AI panel — labelled assistance"]
@@ -572,7 +572,7 @@ An audit trail that can be edited is not an audit trail.
 
 ### R8 — Secrets in the repository · **MEDIUM**
 
-**Controls.** `pydantic-settings` with no defaults for secrets — a missing `ANTHROPIC_API_KEY` fails at startup rather than at the first AI call during a demo. `.env` gitignored, `.env.example` committed with placeholders, `gitleaks` in pre-commit.
+**Controls.** `pydantic-settings` with no defaults for secrets — a missing `AI_API_KEY` fails at startup rather than at the first AI call during a demo. `.env` gitignored, `.env.example` committed with placeholders, `gitleaks` in pre-commit.
 
 ### R9 — CORS misconfiguration · **MEDIUM (deploy-time)**
 
