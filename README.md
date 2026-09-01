@@ -1,2 +1,118 @@
-# AI_Finance_Controller
-An AI Finance Controller that reconciles 50+ financial records across payments, settlements, bank statements, and ledgers, intelligently investigates mismatches, and produces explainable resolutions with accuracy metrics and an honest exception report.
+# LedgerGraph
+
+**AI-assisted financial reconciliation and exception investigation.**
+Razorpay Hackathon — Track 4: AI Finance Controller.
+
+Connects payments, Razorpay settlements, bank statements, invoices, and internal ledgers; matches records deterministically; explains discrepancies with grounded evidence; and routes genuinely uncertain cases to a human.
+
+> **Core principle:** trusted because it can show its work. Deterministic code owns every number. The AI makes investigations clearer and faster — never less accountable.
+
+---
+
+## Repository layout
+
+```text
+ledgergraph/
+├── backend/       FastAPI service      · Python 3.11 · Postgres 16
+├── frontend/      Next.js 15 dashboard · TypeScript · Tailwind v4
+├── packages/      Framework-free domain and engine code
+│   └── domain/    money.py, enums, canonical model, normalisers
+├── db/            schema.sql (source of truth) and seeds
+├── docs/          PRD, tech stack, architecture, database, UI flows
+└── tests/         unit · integration · evaluation
+```
+
+**One rule worth enforcing in CI:** nothing in `packages/` may import from `backend/` or `frontend/`. That is what lets the evaluation harness run the real matching engine without booting an HTTP server, which is what keeps the held-out metrics honest.
+
+---
+
+## Running it
+
+```bash
+make install
+```
+
+Then two terminals:
+
+```bash
+make api
+```
+
+```bash
+make web
+```
+
+API on `:8000` (`/docs` for the browsable OpenAPI), frontend on `:3000`.
+
+Tests:
+
+```bash
+make test
+```
+
+### You need a Postgres
+
+There is no Docker on this machine and the schema depends on Postgres-specific features — enums, `JSONB`, partial indexes, constraint triggers — so SQLite is not a fallback. A free Neon project is the fastest unblock and doubles as the hosted database. Put the URL in `.env` as `DATABASE_URL`, then:
+
+```bash
+make migrate
+```
+
+Until then `/healthz` returns 200 and `/readyz` returns 503 naming the database as the reason, which is the correct behaviour rather than a failure to boot.
+
+---
+
+## Current state
+
+| Piece | Status |
+|---|---|
+| Design docs (5) + `db/schema.sql` | Written |
+| `packages/domain/money.py` | **91 tests passing** |
+| `backend/` — app factory, config, DB session, health, problem+json errors | **Runs on :8000** |
+| `backend/alembic/` — migration 0001 applies `db/schema.sql` | Written, **never executed** (no Postgres yet) |
+| `frontend/` — exceptions queue, case detail | **Builds; verified in light and dark** |
+| Auth, imports, runs, matching engine, AI investigation | Not built |
+| Synthetic generator, evaluation harness | Not built |
+
+The frontend currently reads `frontend/src/fixtures/cases.ts`, not the API. That file is deleted the moment `GET /v1/exceptions` exists.
+
+---
+
+## The build in four days
+
+| Day | Focus | Ships |
+|---|---|---|
+| 1 | Foundation | Money type · schema · synthetic generator with ground truth · ingestion · walking-skeleton deploy |
+| 2 | The engine | Run orchestration · rules R1–R5 · amount bridge · 8 exception detectors · confidence · the auto-resolve gate |
+| 3 | The product | Full auth + RBAC · exceptions queue · case detail · decision workflow · audit trail |
+| 4 | The differentiator | Grounded AI investigation with citation verification · held-out evaluation metrics · export · hosted deploy |
+
+**Never cut:** the evidence packet, the auto-resolve gate, the audit trail, the held-out metrics. Those four *are* the submission.
+
+---
+
+## Design documents
+
+| # | Document | Covers |
+|---|---|---|
+| — | [Project blueprint](LedgerGraph-Track-4-Project-Blueprint.md) | The original problem brief |
+| 1 | [PRD](docs/01-PRD.md) | Problem · users · features · user stories · requirements · edge cases · MVP scope |
+| 2 | [Tech stack](docs/02-tech-stack.md) | Every layer, with the reasoning and the rejected alternatives |
+| 3 | [Architecture](docs/03-architecture.md) | Structure · flows · auth · data flow · security and performance risks |
+| 4 | [Database design](docs/04-database-design.md) | Tables · keys · constraints · indexes, and why each exists |
+| — | [`db/schema.sql`](db/schema.sql) | Complete PostgreSQL 16 DDL |
+| 5 | [UI/UX flowcharts](docs/05-ui-ux-flowcharts.md) | Every screen, function, and state machine, in build order |
+
+---
+
+## The claim worth leading with
+
+Most reconciliation systems optimise for match rate. This one optimises for **false-clear rate** — the number of problematic records it wrongly declares fine. The target is zero, measured on a held-out partition the tuning never saw.
+
+Two pieces of deterministic code carry that claim:
+
+- **the auto-resolve gate** (`packages/reconciliation/policy.py`) — six conditions, all of which must hold; the model's confidence is an input and never an override;
+- **the grounding verifier** (`packages/ai_investigation/verify.py`) — every citation must resolve to a record in the case, and every number must be one the engine computed.
+
+Roughly 160 lines between them. Neither is written yet.
+>>>>>>> afab273 (Initial scaffold: design docs, domain money layer, backend skeleton, frontend queue and case detail)

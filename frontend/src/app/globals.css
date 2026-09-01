@@ -1,0 +1,166 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   LedgerGraph design tokens
+
+   Read: dense internal product UI for finance analysts and controllers.
+   Dials: DESIGN_VARIANCE 3, MOTION_INTENSITY 2, VISUAL_DENSITY 8.
+
+   Three locks, applied everywhere:
+     Theme  - one theme per page, light and dark both defined at token level.
+     Colour - one accent (flag red). Semantic ok/warn are state, not accent.
+     Shape  - one radius (2px). Nothing is pill-shaped, nothing is round.
+   ========================================================================== */
+
+@theme {
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, "SF Mono", monospace;
+
+  --radius-lg: 2px;
+  --radius-md: 2px;
+  --radius-sm: 2px;
+}
+
+:root {
+  color-scheme: light;
+
+  /* Surfaces. Cool-biased neutrals, chosen toward the ink rather than a
+     default mid grey. */
+  --bg:         #f6f7f9;
+  --surface:    #ffffff;
+  --surface-2:  #eef1f5;
+  --surface-3:  #e4e9f0;
+
+  /* Text. --ink-3 is the muted floor and sits at 4.6:1 on --bg, so it is
+     the lightest text allowed anywhere. */
+  --ink:        #151d29;
+  --ink-2:      #46536a;
+  --ink-3:      #667385;
+
+  --line:       #d6dce4;
+  --line-soft:  #e6eaf0;
+
+  /* Accent. One, and only one. Accounting red - the colour a finance team
+     already reads as "this needs attention". */
+  --flag:       #a8322a;
+  --flag-wash:  #fbeeec;
+  --flag-line:  #eccfca;
+
+  /* Semantic state. Not accents. Never used decoratively. */
+  --ok:         #17614a;
+  --ok-wash:    #e2efea;
+  --warn:       #8a5510;
+  --warn-wash:  #f7eddc;
+  --idle:       #667385;
+  --idle-wash:  #eaeef3;
+
+  --radius:     2px;
+  --row:        2.25rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg:         #0f1319;
+    --surface:    #151b23;
+    --surface-2:  #1b222c;
+    --surface-3:  #232b37;
+    --ink:        #e4e9ef;
+    --ink-2:      #a5b1c0;
+    --ink-3:      #7d8a9c;
+    --line:       #2a3440;
+    --line-soft:  #212932;
+    --flag:       #e58274;
+    --flag-wash:  #2c1a17;
+    --flag-line:  #472a25;
+    --ok:         #5cb897;
+    --ok-wash:    #14261f;
+    --warn:       #d6a153;
+    --warn-wash:  #2a2013;
+    --idle:       #7d8a9c;
+    --idle-wash:  #1d242e;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg:         #0f1319;
+  --surface:    #151b23;
+  --surface-2:  #1b222c;
+  --surface-3:  #232b37;
+  --ink:        #e4e9ef;
+  --ink-2:      #a5b1c0;
+  --ink-3:      #7d8a9c;
+  --line:       #2a3440;
+  --line-soft:  #212932;
+  --flag:       #e58274;
+  --flag-wash:  #2c1a17;
+  --flag-line:  #472a25;
+  --ok:         #5cb897;
+  --ok-wash:    #14261f;
+  --warn:       #d6a153;
+  --warn-wash:  #2a2013;
+  --idle:       #7d8a9c;
+  --idle-wash:  #1d242e;
+}
+
+* {
+  box-sizing: border-box;
+  border-color: var(--line);
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Every digit in this product lines up in a column. Non-negotiable in a
+   reconciliation tool: a misaligned amount column defeats scanning. */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Small uppercase field labels. Used for table headers and field captions,
+   NOT as decorative section eyebrows. */
+.label {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+:focus-visible {
+  outline: 2px solid var(--flag);
+  outline-offset: 1px;
+}
+
+::selection {
+  background: var(--flag);
+  color: var(--surface);
+}
+
+/* MOTION_INTENSITY 2. State-change feedback only: a row acknowledging the
+   cursor, a control acknowledging a press. Nothing animates on load, and
+   nothing loops. There is no entrance choreography to disable, but the
+   query is here so the intent is explicit rather than accidental. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

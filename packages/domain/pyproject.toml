@@ -1,0 +1,13 @@
+[project]
+name = "ledgergraph-domain"
+version = "0.1.0"
+description = "Canonical models, money arithmetic, and normalisation. Imports nothing from apps/."
+requires-python = ">=3.11"
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["ledgergraph_domain"]
