@@ -30,13 +30,15 @@ from .routers import health
 
 def _configure_logging(settings: Settings) -> None:
     """Structured JSON logs, so every line for a run is greppable by run_id."""
-    logging.basicConfig(format="%(message)s", level=logging.DEBUG if settings.debug else logging.INFO)
+    log_level = logging.DEBUG if settings.debug else logging.INFO
+    logging.basicConfig(format="%(message)s", level=log_level)
     structlog.configure(
         processors=[
             structlog.contextvars.merge_contextvars,
             structlog.processors.add_log_level,
             structlog.processors.TimeStamper(fmt="iso", utc=True),
-            structlog.dev.ConsoleRenderer() if settings.is_local else structlog.processors.JSONRenderer(),
+            (structlog.dev.ConsoleRenderer() if settings.is_local
+             else structlog.processors.JSONRenderer()),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(
             logging.DEBUG if settings.debug else logging.INFO

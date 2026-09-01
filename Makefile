@@ -1,6 +1,6 @@
 PY := ./.venv/Scripts/python.exe
 
-.PHONY: install test api web build lint migrate
+.PHONY: install test api web build lint migrate gen-data
 
 install:
 	python -m venv .venv
@@ -28,3 +28,8 @@ lint:
 # Applies db/schema.sql through alembic. Needs a reachable Postgres.
 migrate:
 	cd backend && ../.venv/Scripts/python.exe -m alembic upgrade head
+
+# Writes data/synthetic/out/ - five source CSVs + ground_truth.json + manifest.json.
+# Deterministic given --seed; see data/synthetic/README.md.
+gen-data:
+	$(PY) -m data.synthetic.generator --count 1200 --seed 42

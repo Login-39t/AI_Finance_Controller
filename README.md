@@ -17,6 +17,7 @@ ledgergraph/
 ├── frontend/      Next.js 15 dashboard · TypeScript · Tailwind v4
 ├── packages/      Framework-free domain and engine code
 │   └── domain/    money.py, enums, canonical model, normalisers
+├── data/synthetic/ Generator + anomaly injector → CSVs + ground truth
 ├── db/            schema.sql (source of truth) and seeds
 ├── docs/          PRD, tech stack, architecture, database, UI flows
 └── tests/         unit · integration · evaluation
@@ -50,6 +51,12 @@ Tests:
 make test
 ```
 
+Synthetic dataset (no database needed — see [`data/synthetic/README.md`](data/synthetic/README.md)):
+
+```bash
+make gen-data
+```
+
 ### You need a Postgres
 
 There is no Docker on this machine and the schema depends on Postgres-specific features — enums, `JSONB`, partial indexes, constraint triggers — so SQLite is not a fallback. A free Neon project is the fastest unblock and doubles as the hosted database. Put the URL in `.env` as `DATABASE_URL`, then:
@@ -71,10 +78,13 @@ Until then `/healthz` returns 200 and `/readyz` returns 503 naming the database 
 | `backend/` — app factory, config, DB session, health, problem+json errors | **Runs on :8000** |
 | `backend/alembic/` — migration 0001 applies `db/schema.sql` | Written, **never executed** (no Postgres yet) |
 | `frontend/` — exceptions queue, case detail | **Builds; verified in light and dark** |
+| `data/synthetic/` — generator + 12-type anomaly injector | **108 tests total; deterministic; see below** |
 | Auth, imports, runs, matching engine, AI investigation | Not built |
-| Synthetic generator, evaluation harness | Not built |
+| Evaluation harness (reads the generator's ground truth) | Not built |
 
 The frontend currently reads `frontend/src/fixtures/cases.ts`, not the API. That file is deleted the moment `GET /v1/exceptions` exists.
+
+`data/synthetic/out/` is gitignored — regenerate with `make gen-data`. At the default scale (1200 payments, 30-day lookback): 22 settlement batches, 971 lines, 991 ground-truth links (805 tuning / 186 holdout), and every one of the twelve labeled anomaly types fires at least once — a regression that previously let five types silently produce zero instances is now a named test (`test_every_anomaly_type_fires_at_least_once`).
 
 ---
 

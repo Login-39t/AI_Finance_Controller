@@ -7,7 +7,6 @@ system's central correctness claim is false, so this file gates everything.
 from decimal import Decimal
 
 import pytest
-
 from ledgergraph_domain.money import (
     MoneyError,
     allocate_minor,
@@ -17,7 +16,6 @@ from ledgergraph_domain.money import (
     parse_money_to_minor,
     split_sign,
 )
-
 
 # --------------------------------------------------------------------------
 # Parsing: the happy paths
