@@ -1,6 +1,6 @@
 PY := ./.venv/Scripts/python.exe
 
-.PHONY: install test api web build lint migrate gen-data
+.PHONY: install test api web build lint migrate gen-data eval
 
 install:
 	python -m venv .venv
@@ -33,3 +33,7 @@ migrate:
 # Deterministic given --seed; see data/synthetic/README.md.
 gen-data:
 	$(PY) -m data.synthetic.generator --count 1200 --seed 42
+
+# Held-out evaluation against the generator's ground truth.
+eval:
+	PYTHONPATH="packages/domain;packages/reconciliation;backend/src;." $(PY) -m tests.evaluation.harness

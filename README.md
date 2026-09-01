@@ -80,10 +80,24 @@ Until then `/healthz` returns 200 and `/readyz` returns 503 naming the database 
 | `backend/alembic/` — migration 0001 applies `db/schema.sql` | Written, **never executed** (no Postgres yet) |
 | `frontend/` — exceptions queue, case detail | **Builds; verified in light and dark** |
 | `data/synthetic/` — generator + 12-type anomaly injector | **Deterministic; every anomaly type verified to fire** |
-| Auth, imports, runs, matching engine, AI investigation | Not built |
-| Evaluation harness (reads the generator's ground truth) | Not built |
+| `packages/reconciliation/` — rules R1–R6, bridge, 8 detectors, the gate | **Runs; false-clear rate 0.0000 on holdout** |
+| `tests/evaluation/` — held-out metrics vs ground truth | **`make eval`** |
+| Auth, imports, runs, AI investigation | Not built |
 
-**189 tests passing**, lint clean.
+**205 tests passing**, lint clean.
+
+### Held-out evaluation (`make eval`)
+
+| Metric | Holdout | Target |
+|---|---|---|
+| **False-clear rate** | **0.0000** | 0 |
+| Auto-resolution precision | 1.0000 | ≥ 0.99 |
+| Match precision | 1.0000 | ≥ 0.98 |
+| Match recall | 1.0000 | ≥ 0.85 |
+| Coverage | 0.7421 | ≥ 0.70 |
+| Anomaly detection | 11 of 11 types at 100% | — |
+
+3,571 transactions in ~10ms. The holdout partition is separated by a hash of the truth id, not by call order, so a rule change cannot move a record between partitions.
 
 The frontend currently reads `frontend/src/fixtures/cases.ts`, not the API. That file is deleted the moment `GET /v1/exceptions` exists.
 
