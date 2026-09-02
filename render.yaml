@@ -29,11 +29,17 @@ services:
     region: singapore        # closest to the business timezone this reconciles in
     healthCheckPath: /healthz
 
-    # Migrations run before the new instance takes traffic. Running them
-    # from the app's startup instead would race every replica against
-    # every other one.
-    preDeployCommand: >-
-      sh -c "cd /app/backend && alembic upgrade head"
+    # Migrations run at container start, immediately before uvicorn - the
+    # same single command docker-compose uses. The tidier option, a
+    # preDeployCommand that runs once before any instance takes traffic,
+    # is a paid-tier feature Render rejects on free ("pre-deploy command
+    # is not supported for free tier services"). Running it at startup is
+    # safe here because the free tier is a single instance, so there is no
+    # second replica to race. On a paid plan with replicas, move this back
+    # to preDeployCommand so the migration runs exactly once.
+    dockerCommand: >-
+      sh -c "cd /app/backend && alembic upgrade head &&
+             cd /app && exec uvicorn ledgergraph_api.main:app --host 0.0.0.0 --port 8000"
 
     envVars:
       - key: ENVIRONMENT

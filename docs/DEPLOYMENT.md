@@ -88,17 +88,24 @@ afterwards under the service's **Environment** tab):
 
 ### 2.3 What happens on deploy
 
-Before the new instance takes traffic, Render runs the **pre-deploy
-command** from `render.yaml`:
+The container's start command runs the migration and then launches the
+API, in one step:
 
 ```
-cd /app/backend && alembic upgrade head
+cd /app/backend && alembic upgrade head && cd /app && exec uvicorn ...
 ```
 
 This applies `db/schema.sql` verbatim — every table, enum, trigger and
-partial index — through Alembic revision `0001`. Running it here, rather
-than at app startup, means it happens **once** rather than racing every
-replica.
+partial index — through Alembic revision `0001`, then starts uvicorn.
+
+> **Why at startup and not as a pre-deploy step:** Render's tidier
+> `preDeployCommand` (runs once before any instance takes traffic) is a
+> **paid-tier feature** — on free it errors with *"pre-deploy command is
+> not supported for free tier services."* Running the migration at
+> container start is safe on free because there is a single instance, so
+> nothing races it. If you upgrade to a paid plan with replicas, switch
+> `dockerCommand` back to `preDeployCommand` in `render.yaml` so the
+> migration runs exactly once.
 
 > **This is the first time the schema has ever run against a real
 > Postgres.** It is parsed and checked in the test suite, but never
