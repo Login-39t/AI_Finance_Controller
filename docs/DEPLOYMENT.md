@@ -294,7 +294,8 @@ the queue fills with cases you can open, decide, and investigate.
 
 | Symptom | Cause & fix |
 |---|---|
-| API deploy fails at `alembic upgrade head` | The migration log names the failing SQL. Most often the database wasn't fully ready — Render retries; if it persists, check the `DATABASE_URL` binding in `render.yaml`. |
+| Migration fails: `failed to resolve host 'dpg-…-a': Name or service not known` | The API and database are in **different regions** — Render's internal DB hostname only resolves within one region. `render.yaml` pins both to `singapore`; if you already created the DB in another region, **delete `ledgergraph-db`** and re-sync so it is recreated alongside the API. |
+| API deploy fails at `alembic upgrade head` with a SQL error | The migration log names the failing SQL statement. Check the `DATABASE_URL` binding in `render.yaml` and that the DB finished provisioning. |
 | API boots then crashes with *"PERSISTENCE=memory in production"* | `PERSISTENCE=postgres` missing. It is set in `render.yaml`; if you edited env vars, restore it. |
 | Sign-in fails, browser console shows a CORS error | `FRONTEND_ORIGIN` on Render doesn't exactly match the Vercel URL. No trailing slash, correct `https://`. Redeploy after fixing (Step 4). |
 | Signs in, but the session doesn't persist (bounced back to login) | The refresh cookie was dropped. This happens if the API is served over plain HTTP or the origins don't match — both are correct automatically on Render+Vercel, so re-check `FRONTEND_ORIGIN` and that you're using the `https://` URLs. |

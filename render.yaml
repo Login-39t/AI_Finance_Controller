@@ -15,6 +15,12 @@ databases:
     user: ledgergraph
     plan: free
     postgresMajorVersion: "16"
+    # Must match the API's region below. Render's internal database
+    # hostname (dpg-...-a) only resolves between services in the SAME
+    # region; a database left region-less lands in the account default,
+    # and the API in another region cannot resolve it - the connection
+    # fails with "Name or service not known" during the migration.
+    region: singapore
     ipAllowList: []          # private network only
 
 services:
