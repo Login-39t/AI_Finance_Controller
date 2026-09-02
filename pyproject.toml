@@ -1,5 +1,5 @@
 [tool.pytest.ini_options]
-pythonpath = ["packages/domain", "packages/reconciliation", "backend/src", "."]
+pythonpath = ["packages/domain", "packages/reconciliation", "packages/ai_investigation", "backend/src", "."]
 testpaths = ["tests"]
 addopts = "-q --strict-markers"
 asyncio_mode = "auto"

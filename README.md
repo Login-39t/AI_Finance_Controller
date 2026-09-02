@@ -16,7 +16,9 @@ ledgergraph/
 ├── backend/       FastAPI service      · Python 3.11 · Postgres 16
 ├── frontend/      Next.js 15 dashboard · TypeScript · Tailwind v4
 ├── packages/      Framework-free domain and engine code
-│   └── domain/    money.py, enums, canonical model, normalisers
+│   ├── domain/         money.py, enums, canonical model, normalisers
+│   ├── reconciliation/ rules, bridge, detectors, the auto-resolve gate
+│   └── ai_investigation/ packet, redaction, schema, grounding verifier
 ├── data/synthetic/ Generator + anomaly injector → CSVs + ground truth
 ├── db/            schema.sql (source of truth) and seeds
 ├── docs/          PRD, tech stack, architecture, database, UI flows
@@ -82,9 +84,10 @@ Until then `/healthz` returns 200 and `/readyz` returns 503 naming the database 
 | `data/synthetic/` — generator + 12-type anomaly injector | **Deterministic; every anomaly type verified to fire** |
 | `packages/reconciliation/` — rules R1–R6, bridge, 8 detectors, the gate | **Runs; false-clear rate 0.0000 on holdout** |
 | `tests/evaluation/` — held-out metrics vs ground truth | **`make eval`** |
-| Auth, imports, runs, AI investigation | Not built |
+| `packages/ai_investigation/` — packet, redaction, schema, grounding verifier | **Runs; adversarially tested without an API key** |
+| Auth, imports API, runs API | Not built |
 
-**205 tests passing**, lint clean.
+**253 tests passing**, lint clean.
 
 ### Held-out evaluation (`make eval`)
 
@@ -141,4 +144,6 @@ Two pieces of deterministic code carry that claim:
 - **the auto-resolve gate** (`packages/reconciliation/policy.py`) — six conditions, all of which must hold; the model's confidence is an input and never an override;
 - **the grounding verifier** (`packages/ai_investigation/verify.py`) — every citation must resolve to a record in the case, and every number must be one the engine computed.
 
-Roughly 160 lines between them. Neither is written yet.
+Both are now written and tested. The gate holds the false-clear rate at zero on held-out data; the verifier rejects any response citing evidence outside its case or asserting a number the engine did not compute.
+
+The AI layer is testable without an API key, because nothing that decides whether an answer is trustworthy involves a network call. `FakeProvider` exercises every path: schema violations, invented citations, invented arithmetic, provider timeouts, and the single repair retry.
