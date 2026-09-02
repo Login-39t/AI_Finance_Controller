@@ -46,10 +46,12 @@ export default async function ExceptionsPage({
       latestRun(),
     ]);
   } catch (error) {
-    failure =
-      error instanceof ApiError
-        ? `${error.code}: ${error.message}`
-        : "the API could not be reached";
+    // Only ApiError is handled. `redirect()` signals by *throwing*, so
+    // a bare catch swallows the bounce to sign-in and renders an
+    // expired session as an unreachable API. Re-throwing anything
+    // unrecognised also stops a real bug hiding behind this message.
+    if (!(error instanceof ApiError)) throw error;
+    failure = `${error.code}: ${error.message}`;
   }
 
   if (failure) {

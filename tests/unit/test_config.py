@@ -89,3 +89,42 @@ def test_business_defaults_are_indian():
     s = _settings()
     assert s.business_timezone == "Asia/Kolkata"
     assert s.base_currency == "INR"
+
+
+# --------------------------------------------------------------------------
+# The managed-Postgres URL shapes
+# --------------------------------------------------------------------------
+
+@pytest.mark.parametrize(
+    ("supplied", "expected"),
+    [
+        # Heroku still emits the scheme SQLAlchemy removed in 1.4.
+        ("postgres://u:p@h:5432/d", "postgresql+asyncpg://u:p@h:5432/d"),
+        # Render, Neon and Railway emit this. Driverless postgresql://
+        # resolves to psycopg2, which is synchronous, so the async engine
+        # raises on its first connection - in production, having worked
+        # perfectly against a local .env that named the driver.
+        ("postgresql://u:p@h:5432/d", "postgresql+asyncpg://u:p@h:5432/d"),
+        # Already correct: left alone.
+        ("postgresql+asyncpg://u:p@h/d", "postgresql+asyncpg://u:p@h/d"),
+        # A deliberate sync driver is respected, not overwritten.
+        ("postgresql+psycopg://u:p@h/d", "postgresql+psycopg://u:p@h/d"),
+    ],
+)
+def test_a_managed_postgres_url_gets_the_async_driver(monkeypatch, supplied, expected):
+    monkeypatch.setenv("JWT_SECRET", "x" * 40)
+    assert Settings(database_url=supplied).database_url == expected
+
+
+def test_alembic_derives_its_sync_url_from_the_same_value(monkeypatch):
+    """One source for the connection string, two drivers.
+
+    `alembic/env.py` swaps `+asyncpg` for `+psycopg`. If the normaliser
+    above ever stopped producing `+asyncpg`, migrations would silently
+    keep whatever driver the platform supplied - and fail differently
+    from the app, which is the hardest kind of mismatch to diagnose.
+    """
+    monkeypatch.setenv("JWT_SECRET", "x" * 40)
+    app_url = Settings(database_url="postgresql://u:p@h:5432/d").database_url
+    assert "+asyncpg" in app_url
+    assert app_url.replace("+asyncpg", "+psycopg") == "postgresql+psycopg://u:p@h:5432/d"

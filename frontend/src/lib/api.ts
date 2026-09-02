@@ -30,9 +30,14 @@ import { redirect } from "next/navigation";
 import { accessToken } from "./session";
 import type {
   AiInvestigation,
+  AmountBridge,
   CasePacket,
+  Evidence,
   ExceptionCase,
+  GateCondition,
+  Transaction,
 } from "./types";
+import type { MinorUnits } from "./money";
 
 const BASE =
   process.env.API_URL ??
@@ -82,10 +87,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T | null> {
   if (response.status === 404) return null;
 
   if (response.status === 401) {
-    // Middleware already tried to refresh before this render. Reaching
-    // here means the session is genuinely gone, so send the user to sign
-    // in rather than rendering a page full of error cards.
-    redirect("/login");
+    // Middleware already tried to refresh before this render, so reaching
+    // here means the session is genuinely gone - typically a token that
+    // is still unexpired but names a user the API no longer knows.
+    //
+    // Not `redirect("/login")`: the stale cookie is still set, and a
+    // Server Component cannot delete one, so middleware would see it and
+    // bounce straight back here. /session-expired is a Route Handler,
+    // which can clear it.
+    redirect("/session-expired");
   }
 
   if (!response.ok) {
@@ -221,6 +231,108 @@ export const decideCase = (id: string, body: DecisionBody) =>
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+
+// --------------------------------------------------------------------------
+// Match groups
+// --------------------------------------------------------------------------
+
+export interface MatchGroup {
+  id: string;
+  groupType: string;
+  matchedByRule: string;
+  tier: "deterministic" | "scored";
+  status: string;
+  confidence: number;
+  memberCount: number;
+  matchedAmountMinor: MinorUnits;
+  currency: string;
+  explanation: string | null;
+  bridgeBalances: boolean | null;
+  gatePassed: number;
+  gateTotal: number;
+}
+
+export interface MatchGroupDetail extends MatchGroup {
+  transactions: { role: string; transaction: Transaction }[];
+  bridge: AmountBridge | null;
+  evidence: Evidence[];
+  gate: GateCondition[];
+  confidenceComponents: Record<string, number>;
+}
+
+export interface MatchGroupPage {
+  items: MatchGroup[];
+  nextCursor: string | null;
+  total: number;
+  statusCounts: Record<string, number>;
+}
+
+export interface GroupFilters {
+  runId?: string;
+  status?: string;
+  rule?: string;
+  minAmountMinor?: number;
+  cursor?: string;
+  limit?: number;
+}
+
+export function listMatchGroups(filters: GroupFilters = {}) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (value !== undefined && value !== null && value !== "") {
+      params.set(key, String(value));
+    }
+  }
+  const query = params.toString();
+  return request<MatchGroupPage>(`/v1/match-groups${query ? `?${query}` : ""}`);
+}
+
+export const getMatchGroup = (id: string) =>
+  request<MatchGroupDetail>(`/v1/match-groups/${id}`);
+
+// --------------------------------------------------------------------------
+// Reports
+// --------------------------------------------------------------------------
+
+export interface Bucket {
+  count: number;
+  amountAtRiskMinor: string;
+}
+
+export interface Overview {
+  runId: string;
+  rulesetVersion: string;
+  completedAt: string | null;
+  generatedAt: string;
+  recordsProcessed: number;
+  groups: number;
+  autoResolved: number;
+  pendingReview: number;
+  exceptions: number;
+  exceptionValueMinor: string;
+  grossProcessedMinor: string;
+  autoResolutionRate: number;
+  coverage: number;
+  bySeverity: (Bucket & { severity: string })[];
+  byType: (Bucket & { caseType: string })[];
+  decisions: {
+    decided: number;
+    open: number;
+    awaitingController: number;
+    decidedValueMinor: string;
+    openValueMinor: string;
+  };
+  stageTimingsMs: Record<string, number>;
+}
+
+export const getOverview = () => request<Overview>("/v1/reports/overview");
+
+/** Export URLs are built here so a page never hardcodes an API path. */
+export const exportPaths = {
+  exceptions: "/v1/exports/exceptions.csv",
+  matches: "/v1/exports/matches.csv",
+  audit: "/v1/exports/audit.csv",
+} as const;
 
 // --------------------------------------------------------------------------
 // Health

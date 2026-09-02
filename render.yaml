@@ -1,0 +1,84 @@
+# Hosted deployment, as code.
+#
+# Render runs the API and Postgres; Vercel runs the Next.js frontend
+# (see docs/06-deployment.md). Splitting them is not arbitrary: Vercel is
+# Next.js's home turf and its edge network is free here, while a Python
+# service with a long-running background task wants a normal container.
+#
+# What this file deliberately does NOT contain: any secret. `sync: false`
+# means Render prompts for the value once and stores it; a secret written
+# here would be a secret in git, and rotating it would mean a commit.
+
+databases:
+  - name: ledgergraph-db
+    databaseName: ledgergraph
+    user: ledgergraph
+    plan: free
+    postgresMajorVersion: "16"
+    ipAllowList: []          # private network only
+
+services:
+  - type: web
+    name: ledgergraph-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    # The repository root, so the build can see packages/. See the
+    # Dockerfile's own note.
+    dockerContext: .
+    region: singapore        # closest to the business timezone this reconciles in
+    healthCheckPath: /healthz
+
+    # Migrations run before the new instance takes traffic. Running them
+    # from the app's startup instead would race every replica against
+    # every other one.
+    preDeployCommand: >-
+      sh -c "cd /app/backend && alembic upgrade head"
+
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+
+      # Render substitutes the connection string. The +asyncpg driver is
+      # appended by config.py, which normalises whatever the platform
+      # hands it - Render emits a bare postgresql:// URL that SQLAlchemy
+      # would otherwise route to psycopg2.
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ledgergraph-db
+          property: connectionString
+
+      - key: JWT_SECRET
+        generateValue: true   # 256-bit, generated once, never in git
+
+      # No demo accounts in production. config.py refuses to create them
+      # when ENVIRONMENT=production anyway; this makes the intent
+      # explicit at the platform level too, so the guard is not the only
+      # thing standing between a published password and a live system.
+      - key: SEED_DEMO_USERS
+        value: "false"
+
+      # The exact frontend origin. A wildcard is silently ignored by
+      # browsers once credentials are involved, and the refresh token is
+      # a cookie.
+      - key: FRONTEND_ORIGIN
+        sync: false
+
+      - key: BUSINESS_TIMEZONE
+        value: Asia/Kolkata
+      - key: BASE_CURRENCY
+        value: INR
+
+      # AI is off by default. Every deterministic finding stands without
+      # it, so a missing key degrades investigations rather than the
+      # reconciliation.
+      - key: AI_ENABLED
+        value: "false"
+      - key: AI_PROVIDER
+        value: gemini
+      - key: AI_MODEL
+        value: gemini-2.5-flash
+      - key: AI_API_KEY
+        sync: false

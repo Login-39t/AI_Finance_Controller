@@ -1,0 +1,78 @@
+# Local stack: Postgres, the API, the frontend.
+#
+#     docker compose up --build
+#
+# Postgres is the reason this file exists. The schema depends on
+# Postgres-specific features - enum types, JSONB, partial indexes,
+# constraint triggers, CITEXT - so SQLite is not a fallback, and this is
+# the fastest way to get a real one on a machine with Docker.
+#
+# On a machine without Docker (which is where this was built), use a free
+# Neon project instead: put its URL in .env as DATABASE_URL, run
+# `make migrate`, and run the API and web with `make api` / `make web`.
+
+name: ledgergraph
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ledgergraph
+      POSTGRES_PASSWORD: ledgergraph
+      POSTGRES_DB: ledgergraph
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # `pg_isready` alone returns true while the server is still doing
+      # its first-boot initdb dance, which is long enough for the API's
+      # migration step to connect and fail.
+      test: ["CMD-SHELL", "pg_isready -U ledgergraph -d ledgergraph"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+  api:
+    build:
+      # The repository root, so the build can see packages/. The API
+      # imports them and a backend-only context would produce an image
+      # that fails at import rather than at build.
+      context: .
+      dockerfile: backend/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ENVIRONMENT: local
+      DEBUG: "true"
+      DATABASE_URL: postgresql+asyncpg://ledgergraph:ledgergraph@db:5432/ledgergraph
+      # Local only, and it is in git precisely so nobody mistakes it for
+      # a real one. Production gets a generated value from render.yaml.
+      JWT_SECRET: local-development-only-not-a-real-secret-000
+      FRONTEND_ORIGIN: http://localhost:3000
+      SEED_DEMO_USERS: "true"
+      AI_ENABLED: "false"
+    ports:
+      - "8000:8000"
+    command: >-
+      sh -c "cd /app/backend && alembic upgrade head &&
+             cd /app && uvicorn ledgergraph_api.main:app --host 0.0.0.0 --port 8000"
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    depends_on:
+      - api
+    environment:
+      # Server-side calls go container-to-container; the browser never
+      # calls the API directly, so no public URL is needed here.
+      API_URL: http://api:8000
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:

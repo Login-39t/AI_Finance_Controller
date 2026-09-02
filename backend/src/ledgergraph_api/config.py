@@ -97,6 +97,34 @@ class Settings(BaseSettings):
             )
         return v
 
+    @field_validator("database_url")
+    @classmethod
+    def _normalise_driver(cls, v: str) -> str:
+        """Force the async driver onto whatever the platform hands us.
+
+        Managed Postgres providers - Render, Heroku, Neon, Railway - emit
+        a bare `postgresql://` URL, and one of them still emits the
+        legacy `postgres://`. SQLAlchemy resolves a driverless
+        `postgresql://` to **psycopg2**, which is synchronous, so
+        `create_async_engine` raises `InvalidRequestError` on the first
+        connection.
+
+        The failure mode is the bad kind: everything works locally, where
+        `.env` names the driver explicitly, and the service dies on its
+        first request in production. Normalising here means the platform
+        can hand over whatever shape it likes.
+
+        `alembic/env.py` reads this value and swaps `+asyncpg` for
+        `+psycopg`, so migrations get their synchronous driver from the
+        same single source.
+        """
+        if v.startswith("postgres://"):
+            # Removed from SQLAlchemy in 1.4; still emitted by Heroku.
+            v = "postgresql://" + v[len("postgres://"):]
+        if v.startswith("postgresql://"):
+            v = "postgresql+asyncpg://" + v[len("postgresql://"):]
+        return v
+
     @field_validator("seed_demo_users")
     @classmethod
     def _no_demo_users_in_production(cls, v: bool, info) -> bool:

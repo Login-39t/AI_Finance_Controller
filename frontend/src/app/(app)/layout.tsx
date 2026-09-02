@@ -15,9 +15,11 @@ import { currentUser } from "@/lib/session";
  */
 
 const NAV = [
+  { href: "/", label: "Overview" },
   { href: "/exceptions", label: "Exceptions" },
   { href: "/imports", label: "Imports" },
   { href: "/runs", label: "Runs" },
+  { href: "/explorer", label: "Explorer" },
 ] as const;
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -41,7 +43,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-4 border-b px-4 sm:gap-6"
         style={{ background: "var(--surface)", borderColor: "var(--line)" }}
       >
-        <Link href="/exceptions" className="flex shrink-0 items-center gap-2 whitespace-nowrap">
+        <Link href="/" className="flex shrink-0 items-center gap-2 whitespace-nowrap">
           <GraphIcon size={17} weight="duotone" style={{ color: "var(--flag)" }} />
           <span
             className="text-[13.5px] font-semibold tracking-tight"

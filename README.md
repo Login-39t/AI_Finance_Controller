@@ -59,6 +59,12 @@ Synthetic dataset (no database needed — see [`data/synthetic/README.md`](data/
 make gen-data
 ```
 
+### The schema is verified, but it has never been executed
+
+No Postgres and no Docker have been reachable from this machine, so `db/schema.sql` has never run. Rather than leave it unchecked, it is parsed with `pglast` — which wraps **libpg_query, PostgreSQL's own parser** lifted out of the server — and then cross-checked for the errors that parse fine and fail at `CREATE`: foreign keys pointing at columns that do not exist, columns typed with an undeclared enum, indexes on missing columns, triggers calling undefined functions, and any floating-point column anywhere near money.
+
+Those checks were themselves verified by mutation: six defects injected into a copy of the schema, six caught (`tests/unit/test_schema_sql.py`). That narrows the gap. It does not close it — `make migrate` is still the first real test.
+
 ### You need a Postgres
 
 There is no Docker on this machine and the schema depends on Postgres-specific features — enums, `JSONB`, partial indexes, constraint triggers — so SQLite is not a fallback. A free Neon project is the fastest unblock and doubles as the hosted database. Put the URL in `.env` as `DATABASE_URL`, then:
@@ -85,12 +91,16 @@ Until then `/healthz` returns 200 and `/readyz` returns 503 naming the database 
 | `packages/reconciliation/` — rules R1–R6, bridge, 8 detectors, the gate | **Runs; false-clear rate 0.0000 on holdout** |
 | `tests/evaluation/` — held-out metrics vs ground truth | **`make eval`** |
 | `packages/ai_investigation/` — packet, redaction, schema, grounding verifier | **Runs; adversarially tested without an API key** |
-| API — imports, runs, exceptions, investigate | **18 endpoints; full flow verified over HTTP** |
+| API — imports, runs, exceptions, investigate, reports, exports | **24 endpoints; full flow verified over HTTP** |
 | Frontend wired to the live API | **Fixtures deleted; queue, case detail, imports, runs all live** |
 | Auth + RBAC | **Argon2id, rotating refresh tokens with reuse detection, four roles; every domain endpoint refuses an anonymous caller** |
 | Decision workflow | **`POST /v1/exceptions/{id}/decision` with role + materiality + reason-code checks, and an audit event** |
+| Overview dashboard, reconciliation explorer | **Live; the explorer shows auto-resolved groups, not only failures** |
+| Reports and CSV exports | **Exceptions, matches, audit trail — exact amounts, no float in the path** |
+| Deploy — Dockerfiles, `render.yaml`, `docker-compose.yml` | Written; see [deployment](docs/06-deployment.md) |
+| `db/schema.sql` executed | **Never** — no Postgres reachable from this machine. Verified statically instead (below). |
 
-**304 tests passing**, lint clean.
+**355 tests passing**, lint clean.
 
 ### The critical path, live
 
@@ -161,6 +171,7 @@ Persistence is behind a protocol with an in-memory implementation, so the API ru
 | 4 | [Database design](docs/04-database-design.md) | Tables · keys · constraints · indexes, and why each exists |
 | — | [`db/schema.sql`](db/schema.sql) | Complete PostgreSQL 16 DDL |
 | 5 | [UI/UX flowcharts](docs/05-ui-ux-flowcharts.md) | Every screen, function, and state machine, in build order |
+| 6 | [Deployment](docs/06-deployment.md) | Local without Docker · compose · Render + Vercel, and what is still unproven |
 
 ---
 
