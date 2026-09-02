@@ -25,7 +25,7 @@ from . import __version__
 from .config import Settings, get_settings
 from .db import dispose_engine
 from .errors import register_error_handlers
-from .routers import health
+from .routers import exceptions, health, imports, runs
 
 
 def _configure_logging(settings: Settings) -> None:
@@ -95,8 +95,11 @@ def create_app() -> FastAPI:
     # Ops endpoints live at the root, unversioned and unauthenticated.
     app.include_router(health.router)
 
-    # Domain routers mount under /v1 as they land:
-    #   imports · runs · groups · exceptions · reports · exports · auth
+    # Domain routers. Auth, reports and exports mount here as they land.
+    app.include_router(imports.router)
+    app.include_router(runs.router)
+    app.include_router(exceptions.router)
+
     return app
 
 

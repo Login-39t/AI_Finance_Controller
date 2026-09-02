@@ -76,7 +76,7 @@ def register_error_handlers(app: FastAPI) -> None:
         # A bad amount is a client data problem, and the offending value is
         # echoed back so the caller can find the row without guessing.
         return _problem(
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
             exc.code,
             "Invalid amount",
             str(exc),
@@ -89,7 +89,7 @@ def register_error_handlers(app: FastAPI) -> None:
         request: Request, exc: RequestValidationError
     ) -> JSONResponse:
         return _problem(
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
             "VALIDATION_FAILED",
             "Validation failed",
             "One or more fields did not pass validation.",

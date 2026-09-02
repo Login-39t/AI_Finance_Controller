@@ -85,9 +85,22 @@ Until then `/healthz` returns 200 and `/readyz` returns 503 naming the database 
 | `packages/reconciliation/` — rules R1–R6, bridge, 8 detectors, the gate | **Runs; false-clear rate 0.0000 on holdout** |
 | `tests/evaluation/` — held-out metrics vs ground truth | **`make eval`** |
 | `packages/ai_investigation/` — packet, redaction, schema, grounding verifier | **Runs; adversarially tested without an API key** |
-| Auth, imports API, runs API | Not built |
+| API — imports, runs, exceptions, investigate | **13 endpoints; full flow verified over HTTP** |
+| Auth + RBAC | Not built |
+| Frontend wired to the API (still reads fixtures) | Not built |
 
-**253 tests passing**, lint clean.
+**272 tests passing**, lint clean.
+
+### The critical path, live
+
+```
+POST /v1/imports          x6   3,571 rows accepted, 0 rejected
+POST /v1/reconciliation-runs   202 queued -> poll -> completed
+GET  /v1/exceptions            143 cases, sorted by money at risk
+GET  /v1/exceptions/{id}       packet: records, evidence, all 6 gate conditions
+```
+
+Persistence is behind a protocol with an in-memory implementation, so the API runs today without Postgres. That store has no durability, no concurrent writers, and none of the schema's constraints or triggers — it is correct for development and wrong for a deployment, which is why the Postgres implementation is not optional.
 
 ### Held-out evaluation (`make eval`)
 
