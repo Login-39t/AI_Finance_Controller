@@ -18,10 +18,13 @@ from pathlib import Path
 import pytest
 from httpx import ASGITransport, AsyncClient
 from ledgergraph_api.main import app
+from ledgergraph_api.routers.auth import seed_demo_users
 from ledgergraph_api.store import reset_repository
 
 from data.synthetic.anomalies import inject_anomalies
 from data.synthetic.generator import generate_world, write_world
+
+DEMO_PASSWORD = "ledgergraph-demo-2026"
 
 DATASETS = {
     "payments": "payments.csv",
@@ -42,13 +45,36 @@ def dataset(tmp_path_factory) -> Path:
     return out
 
 
+async def _sign_in(c: AsyncClient, role: str = "controller") -> AsyncClient:
+    """Attach a real access token for one of the demo roles.
+
+    Every endpoint below the auth router needs an identity now, so this
+    logs in for real rather than stubbing the dependency. That costs one
+    Argon2 verification per test and buys the guarantee that the token
+    these tests carry is the token a browser would carry.
+    """
+    response = await c.post(
+        "/v1/auth/login",
+        json={"email": f"{role}@ledgergraph.dev", "password": DEMO_PASSWORD},
+    )
+    assert response.status_code == 200, response.text
+    c.headers["Authorization"] = f"Bearer {response.json()['accessToken']}"
+    return c
+
+
 @pytest.fixture
-async def client():
+async def anonymous():
     reset_repository()
+    seed_demo_users()
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         yield c
     reset_repository()
+
+
+@pytest.fixture
+async def client(anonymous):
+    yield await _sign_in(anonymous)
 
 
 async def _upload_all(client, dataset: Path) -> list[dict]:

@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { GraphIcon } from "@phosphor-icons/react/dist/ssr";
 
+import { UserMenu } from "@/components/user-menu";
 import { latestRun } from "@/lib/api";
+import { currentUser } from "@/lib/session";
 
 /**
  * App shell. Nav on one line, 56px tall.
@@ -28,6 +30,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   } catch {
     /* the pages below render their own API-unreachable state */
   }
+
+  // Middleware guarantees a session before this renders, so a missing
+  // user here means the cookie was tampered with rather than absent.
+  const user = await currentUser();
 
   return (
     <div className="flex min-h-[100dvh] flex-col">
@@ -81,10 +87,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               />
             </>
           )}
-          <span className="hidden text-[12.5px] sm:inline" style={{ color: "var(--ink-2)" }}>
-            Meera Balakrishnan
-          </span>
-          <span className="label">Analyst</span>
+          {user && <UserMenu name={user.fullName} role={user.role} />}
         </div>
       </header>
 

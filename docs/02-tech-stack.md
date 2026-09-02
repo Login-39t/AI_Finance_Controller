@@ -26,7 +26,7 @@ A fourth filter runs underneath all three: **does it help the system show its wo
 | Raw file storage | **Postgres `bytea`** (behind an `ObjectStore` interface) | — | Deletes an entire subsystem from the 4-day build; transactional with the import row. S3 is a one-class swap. |
 | Background work | **FastAPI `BackgroundTasks`** + DB-persisted run state | — | Zero infra. ARQ + Redis is a documented one-file upgrade. |
 | Matching | **Pure Python + SQLAlchemy Core + Polars** | Polars 1.x | Deterministic rules as set-based SQL; Polars only for the generator and eval harness. |
-| Auth | **fastapi-users** + Argon2 + JWT access + httpOnly refresh cookie | 14.x | Full auth stack — register, verify, login, refresh, reset — as mounted routers, in hours. |
+| Auth | Argon2id (`argon2-cffi`) + JWT access (`PyJWT`) + rotating httpOnly refresh cookie | — | **Built, deviating from the `fastapi-users` choice below.** Every dangerous primitive still comes from a library; only the glue is ours. |
 | AI | **Provider-neutral**, schema-constrained JSON. Default `gemini-2.5-flash` (free tier) | — | The architecture distrusts the model, so provider is config. Free tiers suffice; Bedrock is not free. |
 | Testing | **pytest + httpx + testcontainers**, Vitest, Playwright | — | Golden-file rule tests and the eval harness are the credibility of the whole submission. |
 | Local deploy | **Docker Compose** | — | `docker compose up` → Postgres + API + web. Two services, one command. |
@@ -128,6 +128,19 @@ FastAPI's `BackgroundTasks` runs the job in the same process after the response 
 | **Litestar** | Genuinely good, arguably cleaner DI. Smaller ecosystem, and `fastapi-users` has no equivalent — you would hand-roll auth, which is the day you were trying not to spend. |
 | **Node/NestJS** | You chose Python, and correctly: the generator, the eval harness, and `Decimal` handling are all better in Python. |
 | **Celery on day 1** | Redis + worker + Flower for a job that takes 90 seconds. Infrastructure spent on a problem you do not have yet. |
+
+---
+
+### Deviation, stated: `fastapi-users` was not used
+
+The table above originally named `fastapi-users`, and the reasoning behind that choice — do not hand-roll auth — still holds. Two concrete facts changed the answer during the build, and both are recorded here rather than quietly:
+
+1. **It needs a persistence adapter, and there is no database yet.** `fastapi-users` binds to SQLAlchemy or Beanie. With the repository still in-memory, using it would have meant writing a custom adapter that gets deleted the day Postgres lands.
+2. **It ships no refresh-token rotation.** Rotation with reuse detection is the property architecture risk R5 actually cares about: it turns a stolen refresh token from indefinitely usable into usable once, after which the theft announces itself and the whole family is revoked. That would have had to be built on top regardless.
+
+What was *not* hand-rolled: Argon2id hashing comes from `argon2-cffi` at library defaults, and JWT signing and verification from `PyJWT` with an explicit algorithm list. The code in `backend/src/ledgergraph_api/auth.py` is the glue between those and the repository — the part that has to know this system's rules.
+
+The endpoint shapes match what `fastapi-users` produces (`/register`, `/login`, `/refresh`, `/logout`, `/me`), so adopting it for verification and password reset once Postgres exists is a wiring change, not a client rewrite.
 
 ---
 

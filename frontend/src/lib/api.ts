@@ -17,8 +17,17 @@
  * **`cache: "no-store"` everywhere.** Reconciliation state changes as runs
  * complete and decisions land. A cached queue would show an analyst work
  * that is already done.
+ *
+ * **Every call carries the session token.** The API refuses an anonymous
+ * request on every domain endpoint, so the bearer is attached here rather
+ * than at each call site - one place to get right, and a helper added
+ * later cannot forget it.
  */
 
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+
+import { accessToken } from "./session";
 import type {
   AiInvestigation,
   CasePacket,
@@ -40,16 +49,44 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * The bearer for this request.
+ *
+ * Normally the session cookie. On the one render that follows a silent
+ * refresh, middleware forwards the freshly minted token as a header,
+ * because a cookie it just set is not yet readable here.
+ */
+async function bearer(): Promise<string | null> {
+  const forwarded = (await headers()).get("x-lg-access");
+  return forwarded ?? (await accessToken());
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T | null> {
+  const token = await bearer();
+
   let response: Response;
   try {
-    response = await fetch(`${BASE}${path}`, { cache: "no-store", ...init });
-  } catch (cause) {
+    response = await fetch(`${BASE}${path}`, {
+      cache: "no-store",
+      ...init,
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(init?.headers ?? {}),
+      },
+    });
+  } catch {
     // The API being down is a condition a page must render, not a crash.
     throw new ApiError(0, "API_UNREACHABLE", `cannot reach the API at ${BASE}`);
   }
 
   if (response.status === 404) return null;
+
+  if (response.status === 401) {
+    // Middleware already tried to refresh before this render. Reaching
+    // here means the session is genuinely gone, so send the user to sign
+    // in rather than rendering a page full of error cards.
+    redirect("/login");
+  }
 
   if (!response.ok) {
     let code = "HTTP_ERROR";
@@ -171,6 +208,19 @@ export const getCase = (id: string) => request<CasePacket>(`/v1/exceptions/${id}
 
 export const requestInvestigation = (id: string) =>
   request<AiInvestigation>(`/v1/exceptions/${id}/investigate`, { method: "POST" });
+
+export interface DecisionBody {
+  resolution: "approved" | "rejected" | "overridden" | "dismissed";
+  reasonCode?: string | null;
+  note?: string;
+}
+
+export const decideCase = (id: string, body: DecisionBody) =>
+  request<CasePacket>(`/v1/exceptions/${id}/decision`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
 
 // --------------------------------------------------------------------------
 // Health

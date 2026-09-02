@@ -13,6 +13,14 @@ dependencies = [
   "pydantic-settings>=2.7",
   "structlog>=24.4",
   "python-multipart>=0.0.20",
+  # Auth. Both are library-owned primitives: Argon2id hashing and JWT
+  # signing/verification. See docs/02-tech-stack.md for why the glue
+  # around them is ours rather than fastapi-users.
+  "argon2-cffi>=25.1",
+  "PyJWT>=2.10",
+  # Pydantic's EmailStr needs it; without it the auth router fails at
+  # import rather than at the first request.
+  "email-validator>=2.2",
 ]
 
 [build-system]

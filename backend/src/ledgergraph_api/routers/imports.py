@@ -18,16 +18,23 @@ import csv
 import hashlib
 import io
 
-from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile, status
 from ledgergraph_domain.enums import ImportStatus
 from ledgergraph_domain.normalizers import NORMALIZERS, RejectionError, get_normalizer
 
 from ..config import get_settings
+from ..deps import CanRead, current_user
 from ..dto import ImportDetailDTO, ImportDTO, import_dto
 from ..errors import ApiError
 from ..store import get_repository, new_audit
 
-router = APIRouter(prefix="/v1/imports", tags=["imports"])
+# Auth at the router rather than per-route: a new endpoint added here
+# later is protected by default. Forgetting a decorator is how an
+# unauthenticated endpoint ships.
+router = APIRouter(
+    prefix="/v1/imports", tags=["imports"],
+    dependencies=[Depends(current_user)],
+)
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 
@@ -64,6 +71,7 @@ async def get_import(import_id: str) -> ImportDetailDTO:
 @router.post("", response_model=ImportDetailDTO, status_code=status.HTTP_201_CREATED,
               summary="Upload a source file")
 async def create_import(
+    user: CanRead,
     dataset: str = Form(...),
     file: UploadFile = File(...),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
@@ -154,6 +162,7 @@ async def create_import(
 
     repo.add_audit(new_audit(
         entity_type="import", entity_id=record.import_id, action="imported",
+        actor_type="user", actor_name=user.full_name, actor_role=user.role.value,
         detail=(
             f"{record.rows_accepted} accepted, {record.rows_rejected} rejected "
             f"from {record.filename}"

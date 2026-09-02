@@ -25,7 +25,7 @@ from . import __version__
 from .config import Settings, get_settings
 from .db import dispose_engine
 from .errors import register_error_handlers
-from .routers import exceptions, health, imports, runs
+from .routers import auth, exceptions, health, imports, runs
 
 
 def _configure_logging(settings: Settings) -> None:
@@ -60,6 +60,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
     # The database is not probed here on purpose. Startup must not depend
     # on it; /readyz reports its state instead.
+    seeded = auth.seed_demo_users()
+    if seeded:
+        log.info("api.demo_users_seeded", count=seeded)
+
     yield
     await dispose_engine()
     log.info("api.stop")
@@ -95,7 +99,8 @@ def create_app() -> FastAPI:
     # Ops endpoints live at the root, unversioned and unauthenticated.
     app.include_router(health.router)
 
-    # Domain routers. Auth, reports and exports mount here as they land.
+    # Domain routers. Reports and exports mount here as they land.
+    app.include_router(auth.router)
     app.include_router(imports.router)
     app.include_router(runs.router)
     app.include_router(exceptions.router)

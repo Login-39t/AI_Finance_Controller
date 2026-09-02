@@ -21,6 +21,7 @@ from typing import Literal
 
 from ledgergraph_ai.client import InvestigationOutcome
 from ledgergraph_domain.canonical import CanonicalTransaction
+from ledgergraph_domain.enums import CaseResolution, ExceptionStatus
 from ledgergraph_reconciliation.models import (
     Bridge,
     Evidence,
@@ -30,7 +31,7 @@ from ledgergraph_reconciliation.models import (
 from ledgergraph_reconciliation.policy import Policy, requires_controller
 from pydantic import BaseModel, ConfigDict, Field
 
-from .store import AuditEvent, ImportRecord, RunRecord
+from .store import AuditEvent, CaseDecision, ImportRecord, RunRecord
 
 
 class Wire(BaseModel):
@@ -170,6 +171,12 @@ class ExceptionCaseDTO(Wire):
     primarySourceSystem: str
     rulesetVersion: str
     requiresControllerApproval: bool
+    resolution: str | None = None
+    reasonCode: str | None = None
+    decisionNote: str | None = None
+    decidedBy: str | None = None
+    decidedByRole: str | None = None
+    decidedAt: datetime | None = None
 
 
 class CaseMemberDTO(Wire):
@@ -307,21 +314,33 @@ def bridge_dto(bridge: Bridge) -> AmountBridgeDTO:
     )
 
 
-def case_dto(case: ExceptionCase, run_id: str, ruleset: str, policy: Policy) -> ExceptionCaseDTO:
+def case_dto(
+    case: ExceptionCase, run_id: str, ruleset: str, policy: Policy,
+    decision: CaseDecision | None = None,
+) -> ExceptionCaseDTO:
     return ExceptionCaseDTO(
         id=case.case_id,
         runId=run_id,
         caseType=case.case_type.value,
         severity=case.severity.value,
-        # Cases arrive from the engine unworked; a decision workflow will
-        # move this on once it exists.
-        status="unresolved" if case.group and not case.group.auto_resolved else "open",
+        # The engine opens a case; a person closes it. `unresolved` is a
+        # first-class outcome rather than a failure - abstention is what
+        # keeps the false-clear rate at zero.
+        status=_case_status(case, decision),
         amountAtRiskMinor=str(case.amount_at_risk_minor),
         currency=case.currency,
         confidence=case.confidence,
         hypothesis=case.hypothesis or None,
         recommendation=case.recommendation or None,
         assignedTo=None,
+        resolution=decision.resolution.value if decision else None,
+        reasonCode=(
+            decision.reason_code.value if decision and decision.reason_code else None
+        ),
+        decisionNote=(decision.note or None) if decision else None,
+        decidedBy=decision.decided_by_name if decision else None,
+        decidedByRole=decision.decided_by_role.value if decision else None,
+        decidedAt=decision.decided_at if decision else None,
         openedAt=datetime.now(tz=None).astimezone(),
         primaryExternalId=case.primary_external_id,
         primarySourceSystem=(
@@ -331,6 +350,16 @@ def case_dto(case: ExceptionCase, run_id: str, ruleset: str, policy: Policy) -> 
         rulesetVersion=ruleset,
         requiresControllerApproval=requires_controller(case.amount_at_risk_minor, policy),
     )
+
+
+def _case_status(case: ExceptionCase, decision: CaseDecision | None) -> str:
+    if decision is not None:
+        if decision.resolution is CaseResolution.DISMISSED:
+            return ExceptionStatus.DISMISSED.value
+        return ExceptionStatus.RESOLVED.value
+    if case.group and not case.group.auto_resolved:
+        return ExceptionStatus.UNRESOLVED.value
+    return ExceptionStatus.OPEN.value
 
 
 def _role_for(group: MatchGroup | None, txn: CanonicalTransaction) -> str:
@@ -344,8 +373,9 @@ def _role_for(group: MatchGroup | None, txn: CanonicalTransaction) -> str:
 def packet_dto(
     case: ExceptionCase, run_id: str, ruleset: str, policy: Policy,
     *, investigations: list[InvestigationOutcome], audit: list[AuditEvent],
+    decision: CaseDecision | None = None,
 ) -> CasePacketDTO:
-    base = case_dto(case, run_id, ruleset, policy)
+    base = case_dto(case, run_id, ruleset, policy, decision)
 
     members: list[CaseMemberDTO] = []
     seen: set[str] = set()

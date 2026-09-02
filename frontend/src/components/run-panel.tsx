@@ -4,8 +4,11 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { PlayIcon, SpinnerGapIcon } from "@phosphor-icons/react/dist/ssr";
 
-import { apiBaseUrl, type Run } from "@/lib/api";
+// `import type` only - a value import from api.ts would drag
+// next/headers into this client bundle and fail the build.
+import type { Run } from "@/lib/api";
 import { formatMinor } from "@/lib/money";
+import { pollRun, startRun } from "@/lib/work-actions";
 
 const POLL_MS = 800;
 const MAX_POLLS = 300;
@@ -39,44 +42,34 @@ export function RunPanel({ initialRun }: { initialRun: Run | null }) {
       setBusy(false);
       return;
     }
-    try {
-      const response = await fetch(`${apiBaseUrl}/v1/reconciliation-runs/${runId}`, {
-        cache: "no-store",
-      });
-      const body = (await response.json()) as Run;
-      setRun(body);
-
-      if (body.status === "completed" || body.status === "failed") {
-        setBusy(false);
-        router.refresh();
-        return;
-      }
-      timer.current = setTimeout(() => poll(runId, attempt + 1), POLL_MS);
-    } catch {
-      setError(`cannot reach the API at ${apiBaseUrl}`);
+    const result = await pollRun(runId);
+    if (!result.ok || !result.data) {
+      setError(result.error ?? "lost track of the run");
       setBusy(false);
+      return;
     }
+
+    setRun(result.data);
+    if (result.data.status === "completed" || result.data.status === "failed") {
+      setBusy(false);
+      router.refresh();
+      return;
+    }
+    timer.current = setTimeout(() => poll(runId, attempt + 1), POLL_MS);
   }
 
   async function start() {
     setBusy(true);
     setError(null);
-    try {
-      const response = await fetch(`${apiBaseUrl}/v1/reconciliation-runs`, {
-        method: "POST",
-      });
-      const body = await response.json();
-      if (!response.ok) {
-        setError(body.detail ?? `could not start a run (${response.status})`);
-        setBusy(false);
-        return;
-      }
-      setRun(body as Run);
-      poll(body.id);
-    } catch {
-      setError(`cannot reach the API at ${apiBaseUrl}`);
+
+    const result = await startRun();
+    if (!result.ok || !result.data) {
+      setError(result.error ?? "could not start a run");
       setBusy(false);
+      return;
     }
+    setRun(result.data);
+    poll(result.data.id);
   }
 
   const metrics = run?.metrics;

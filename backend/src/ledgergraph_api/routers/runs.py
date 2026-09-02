@@ -12,16 +12,20 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from ledgergraph_domain.enums import RunStatus
 from ledgergraph_reconciliation import RULESET_VERSION, execute
 from ledgergraph_reconciliation.policy import Policy
 
+from ..deps import CanRead, current_user
 from ..dto import RunDTO, run_dto
 from ..errors import ApiError
 from ..store import get_repository, new_audit
 
-router = APIRouter(prefix="/v1/reconciliation-runs", tags=["runs"])
+router = APIRouter(
+    prefix="/v1/reconciliation-runs", tags=["runs"],
+    dependencies=[Depends(current_user)],
+)
 
 
 @router.get("", response_model=list[RunDTO], summary="List runs")
@@ -47,7 +51,7 @@ async def get_run(run_id: str) -> RunDTO:
 
 @router.post("", response_model=RunDTO, status_code=status.HTTP_202_ACCEPTED,
               summary="Start a reconciliation run")
-async def start_run(background: BackgroundTasks) -> RunDTO:
+async def start_run(background: BackgroundTasks, user: CanRead) -> RunDTO:
     repo = get_repository()
 
     transactions = repo.all_transactions()
@@ -70,6 +74,12 @@ async def start_run(background: BackgroundTasks) -> RunDTO:
         )
 
     record = repo.create_run(RULESET_VERSION)
+    repo.add_audit(new_audit(
+        entity_type="run", entity_id=record.run_id, action="run_started",
+        actor_type="user", actor_name=user.full_name, actor_role=user.role.value,
+        ruleset_version=RULESET_VERSION,
+        detail=f"run queued over {len(transactions)} records",
+    ))
     background.add_task(_execute_run, record.run_id)
     return run_dto(record)
 

@@ -44,6 +44,13 @@ class Settings(BaseSettings):
     access_token_minutes: int = 15
     refresh_token_days: int = 7
 
+    # Four accounts, one per role, so the RBAC boundary can be shown
+    # rather than described. Guarded by a validator below because a
+    # known-password account in production is not a demo convenience,
+    # it is an open door.
+    seed_demo_users: bool = True
+    demo_password: str = "ledgergraph-demo-2026"
+
     # -- CORS -------------------------------------------------------------
     # Exact origin, never a wildcard. Browsers silently ignore a wildcard
     # once credentials are involved, which reads as "auth is broken in
@@ -87,6 +94,17 @@ class Settings(BaseSettings):
                 f"AI_ENABLED is true and AI_PROVIDER is {provider!r}, but AI_API_KEY is unset. "
                 "Set the key, set AI_PROVIDER=ollama to run a local model, "
                 "or set AI_ENABLED=false to run without investigations."
+            )
+        return v
+
+    @field_validator("seed_demo_users")
+    @classmethod
+    def _no_demo_users_in_production(cls, v: bool, info) -> bool:
+        if v and info.data.get("environment") == "production":
+            raise ValueError(
+                "SEED_DEMO_USERS is true in production. These accounts have a "
+                "password that is published in the README; refusing to create "
+                "them. Set SEED_DEMO_USERS=false."
             )
         return v
 

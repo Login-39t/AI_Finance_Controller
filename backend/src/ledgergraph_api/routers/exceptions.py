@@ -17,10 +17,17 @@ import json
 from fastapi import APIRouter, HTTPException, Query, status
 from ledgergraph_ai import Redactor, build_packet, investigate
 from ledgergraph_ai.client import build_provider
-from ledgergraph_domain.enums import AiValidationStatus
-from ledgergraph_reconciliation.policy import Policy
+from ledgergraph_domain.enums import (
+    AiValidationStatus,
+    CaseResolution,
+    ReasonCode,
+    UserRole,
+)
+from ledgergraph_reconciliation.policy import Policy, requires_controller
+from pydantic import BaseModel, Field
 
 from ..config import get_settings
+from ..deps import CanDecide, CanRead
 from ..dto import (
     AiInvestigationDTO,
     CasePacketDTO,
@@ -30,7 +37,7 @@ from ..dto import (
     packet_dto,
 )
 from ..errors import ApiError
-from ..store import get_repository, new_audit
+from ..store import CaseDecision, get_repository, new_audit
 
 router = APIRouter(prefix="/v1/exceptions", tags=["exceptions"])
 
@@ -66,6 +73,7 @@ def _current_run(run_id: str | None):
 
 @router.get("", response_model=CasePageDTO, summary="Exception queue")
 async def list_exceptions(
+    _: CanRead,
     run_id: str | None = Query(default=None, alias="runId"),
     case_type: str | None = Query(default=None, alias="caseType"),
     severity: str | None = None,
@@ -97,9 +105,12 @@ async def list_exceptions(
         _encode_cursor(offset + limit) if offset + limit < len(cases) else None
     )
 
+    decisions = get_repository().all_decisions()
     return CasePageDTO(
         items=[
-            case_dto(c, record.run_id, record.ruleset_version, policy) for c in page
+            case_dto(c, record.run_id, record.ruleset_version, policy,
+                     decisions.get(c.case_id))
+            for c in page
         ],
         nextCursor=next_cursor,
         total=len(cases),
@@ -107,7 +118,7 @@ async def list_exceptions(
 
 
 @router.get("/{case_id}", response_model=CasePacketDTO, summary="Investigation packet")
-async def get_exception(case_id: str) -> CasePacketDTO:
+async def get_exception(case_id: str, _: CanRead) -> CasePacketDTO:
     repo = get_repository()
     case = repo.get_case(case_id)
     if case is None:
@@ -121,12 +132,13 @@ async def get_exception(case_id: str) -> CasePacketDTO:
         Policy(),
         investigations=repo.investigations(case_id),
         audit=repo.audit_for(case_id),
+        decision=repo.get_decision(case_id),
     )
 
 
 @router.post("/{case_id}/investigate", response_model=AiInvestigationDTO,
               summary="Request a grounded AI investigation")
-async def request_investigation(case_id: str) -> AiInvestigationDTO:
+async def request_investigation(case_id: str, user: CanRead) -> AiInvestigationDTO:
     """Assemble the packet, call the model, verify the answer.
 
     A schema violation, an invented citation, or a number the engine did
@@ -175,6 +187,7 @@ async def request_investigation(case_id: str) -> AiInvestigationDTO:
     repo.add_audit(new_audit(
         entity_type="exception_case", entity_id=case_id, action="ai_investigated",
         actor_type="ai", actor_name=settings.ai_model,
+        actor_role=user.role.value,
         detail=(
             f"grounded investigation returned {outcome.status.value} "
             f"after {outcome.attempts} attempt(s); packet {outcome.packet_fingerprint}"
@@ -187,3 +200,114 @@ async def request_investigation(case_id: str) -> AiInvestigationDTO:
         return investigation_dto(len(repo.investigations(case_id)), outcome)
 
     return investigation_dto(len(repo.investigations(case_id)), outcome)
+
+
+# --------------------------------------------------------------------------
+# The decision
+# --------------------------------------------------------------------------
+
+class DecisionRequest(BaseModel):
+    resolution: CaseResolution
+    reasonCode: ReasonCode | None = None
+    note: str = Field(default="", max_length=2000)
+
+
+@router.post("/{case_id}/decision", response_model=CasePacketDTO,
+              summary="Approve, reject, override, or dismiss a case")
+async def decide(case_id: str, body: DecisionRequest, user: CanDecide) -> CasePacketDTO:
+    """Record a human verdict, with an audit event written beside it.
+
+    Three checks, and each one exists because the others do not cover it:
+
+    1. **role** - handled by the `CanDecide` dependency; an analyst reads
+       and investigates but does not decide.
+    2. **amount** - a reviewer may not clear a case above the material
+       threshold. This cannot live on the route, because it depends on
+       the case rather than the caller (PRD story D2).
+    3. **reason code** - mandatory on an override, which is the decision
+       that contradicts the engine and therefore the one that most needs
+       a defensible record (PRD story D1, mirrored by a CHECK constraint
+       in `db/schema.sql`).
+
+    A decision is not idempotent and not silently replaceable: a second
+    decision on an already-decided case is a 409 rather than an
+    overwrite, because the audit trail is the product here and quietly
+    losing the first verdict would defeat it.
+    """
+    repo = get_repository()
+    case = repo.get_case(case_id)
+    if case is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no such case")
+
+    existing = repo.get_decision(case_id)
+    if existing is not None:
+        raise ApiError(
+            "ALREADY_DECIDED",
+            (
+                f"this case was already {existing.resolution.value} by "
+                f"{existing.decided_by_name}; reopen it before deciding again"
+            ),
+            status_code=status.HTTP_409_CONFLICT,
+        )
+
+    policy = Policy()
+    material = requires_controller(case.amount_at_risk_minor, policy)
+    if material and user.role not in (UserRole.CONTROLLER, UserRole.ADMIN):
+        raise ApiError(
+            "CONTROLLER_APPROVAL_REQUIRED",
+            (
+                f"{_rupees(case.amount_at_risk_minor)} is above the "
+                f"{_rupees(policy.review_required_above_minor)} threshold; "
+                f"only a controller may decide this case"
+            ),
+            status_code=status.HTTP_403_FORBIDDEN,
+        )
+
+    if body.resolution is CaseResolution.AUTO_RESOLVED:
+        # The engine owns this value. A human recording it by hand would
+        # make the auto-resolution precision metric a lie.
+        raise ApiError(
+            "NOT_A_HUMAN_RESOLUTION",
+            "auto_resolved is produced by the gate, not by a person",
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+
+    if body.resolution is CaseResolution.OVERRIDDEN and body.reasonCode is None:
+        raise ApiError(
+            "REASON_CODE_REQUIRED",
+            "an override must carry a reason code from the controlled list",
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+
+    decision = CaseDecision(
+        case_id=case_id, resolution=body.resolution, reason_code=body.reasonCode,
+        note=body.note.strip(), decided_by=user.user_id,
+        decided_by_name=user.full_name, decided_by_role=user.role,
+    )
+    repo.record_decision(decision)
+    repo.add_audit(new_audit(
+        entity_type="exception_case", entity_id=case_id,
+        action=body.resolution.value, actor_type="user",
+        actor_name=user.full_name, actor_role=user.role.value,
+        reason_code=body.reasonCode.value if body.reasonCode else None,
+        detail=(
+            decision.note
+            or f"{body.resolution.value} on {_rupees(case.amount_at_risk_minor)} at risk"
+        ),
+        ruleset_version=get_settings().ruleset_version,
+    ))
+
+    record = repo.latest_run()
+    return packet_dto(
+        case,
+        record.run_id if record else "unknown",
+        record.ruleset_version if record else "unknown",
+        policy,
+        investigations=repo.investigations(case_id),
+        audit=repo.audit_for(case_id),
+        decision=decision,
+    )
+
+
+def _rupees(minor: int) -> str:
+    return f"Rs {minor / 100:,.2f}"

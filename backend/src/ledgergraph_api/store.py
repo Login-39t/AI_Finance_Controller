@@ -28,7 +28,13 @@ from typing import Protocol
 
 from ledgergraph_ai.client import InvestigationOutcome
 from ledgergraph_domain.canonical import CanonicalTransaction
-from ledgergraph_domain.enums import ImportStatus, RunStatus
+from ledgergraph_domain.enums import (
+    CaseResolution,
+    ImportStatus,
+    ReasonCode,
+    RunStatus,
+    UserRole,
+)
 from ledgergraph_reconciliation.models import ExceptionCase, MatchGroup, RunResult
 
 
@@ -73,6 +79,67 @@ class RunRecord:
 
 
 @dataclass
+class User:
+    user_id: str
+    email: str
+    hashed_password: str
+    full_name: str
+    role: UserRole
+    is_active: bool = True
+    #: No SMTP in this environment, so accounts are created verified and
+    #: the field exists to carry the flow once mail is wired. Recording
+    #: that honestly beats pretending a verification step ran.
+    is_verified: bool = True
+    created_at: datetime = field(default_factory=_now)
+    last_login_at: datetime | None = None
+
+
+@dataclass
+class RefreshToken:
+    token_id: str
+    user_id: str
+    digest: str
+    #: All tokens descended from one login share a family. Presenting a
+    #: consumed token revokes the whole family, which is what turns a
+    #: stolen token from indefinitely usable into usable once.
+    family_id: str
+    expires_at: datetime
+    issued_at: datetime = field(default_factory=_now)
+    consumed_at: datetime | None = None
+    revoked_at: datetime | None = None
+
+    @property
+    def is_live(self) -> bool:
+        return (
+            self.consumed_at is None
+            and self.revoked_at is None
+            and self.expires_at > _now()
+        )
+
+
+@dataclass
+class CaseDecision:
+    """A human's verdict on one case.
+
+    Held beside the run result rather than mutating `ExceptionCase`,
+    because a run's output is what the engine computed at a point in
+    time and a decision is what a person did afterwards. Folding the
+    second into the first would mean a re-run either silently erases
+    decisions or has to merge them back - and it would make the
+    engine's dataclasses depend on the API's notion of a user.
+    """
+
+    case_id: str
+    resolution: CaseResolution
+    reason_code: ReasonCode | None
+    note: str
+    decided_by: str
+    decided_by_name: str
+    decided_by_role: UserRole
+    decided_at: datetime = field(default_factory=_now)
+
+
+@dataclass
 class AuditEvent:
     event_id: str
     entity_type: str
@@ -108,8 +175,21 @@ class Repository(Protocol):
     def get_group(self, group_id: str) -> MatchGroup | None: ...
     def add_investigation(self, case_id: str, outcome: InvestigationOutcome) -> None: ...
     def investigations(self, case_id: str) -> list[InvestigationOutcome]: ...
+    def record_decision(self, decision: CaseDecision) -> None: ...
+    def get_decision(self, case_id: str) -> CaseDecision | None: ...
+    def all_decisions(self) -> dict[str, CaseDecision]: ...
     def add_audit(self, event: AuditEvent) -> None: ...
     def audit_for(self, entity_id: str) -> list[AuditEvent]: ...
+    def create_user(self, *, email: str, hashed_password: str, full_name: str,
+                     role: UserRole) -> User: ...
+    def get_user(self, user_id: str) -> User | None: ...
+    def find_user_by_email(self, email: str) -> User | None: ...
+    def list_users(self) -> list[User]: ...
+    def store_refresh(self, *, user_id: str, digest: str, family_id: str,
+                       expires_at: datetime) -> RefreshToken: ...
+    def find_refresh(self, digest: str) -> RefreshToken | None: ...
+    def consume_refresh(self, token: RefreshToken) -> None: ...
+    def revoke_family(self, family_id: str) -> int: ...
 
 
 class InMemoryRepository:
@@ -123,6 +203,9 @@ class InMemoryRepository:
         self._groups: dict[str, MatchGroup] = {}
         self._investigations: dict[str, list[InvestigationOutcome]] = defaultdict(list)
         self._audit: dict[str, list[AuditEvent]] = defaultdict(list)
+        self._decisions: dict[str, CaseDecision] = {}
+        self._users: dict[str, User] = {}
+        self._refresh: dict[str, RefreshToken] = {}
 
     # -- imports ---------------------------------------------------------
 
@@ -205,6 +288,17 @@ class InMemoryRepository:
     def investigations(self, case_id: str) -> list[InvestigationOutcome]:
         return list(self._investigations[case_id])
 
+    # -- decisions ---------------------------------------------------------
+
+    def record_decision(self, decision: CaseDecision) -> None:
+        self._decisions[decision.case_id] = decision
+
+    def get_decision(self, case_id: str) -> CaseDecision | None:
+        return self._decisions.get(case_id)
+
+    def all_decisions(self) -> dict[str, CaseDecision]:
+        return dict(self._decisions)
+
     # -- audit -----------------------------------------------------------
 
     def add_audit(self, event: AuditEvent) -> None:
@@ -213,6 +307,59 @@ class InMemoryRepository:
 
     def audit_for(self, entity_id: str) -> list[AuditEvent]:
         return list(self._audit[entity_id])
+
+    # -- users -----------------------------------------------------------
+
+    def create_user(self, *, email: str, hashed_password: str, full_name: str,
+                     role: UserRole) -> User:
+        user = User(
+            user_id=_new_id("usr"), email=email.strip().lower(),
+            hashed_password=hashed_password, full_name=full_name, role=role,
+        )
+        self._users[user.user_id] = user
+        return user
+
+    def get_user(self, user_id: str) -> User | None:
+        return self._users.get(user_id)
+
+    def find_user_by_email(self, email: str) -> User | None:
+        target = email.strip().lower()
+        return next((u for u in self._users.values() if u.email == target), None)
+
+    def list_users(self) -> list[User]:
+        return sorted(self._users.values(), key=lambda u: u.created_at)
+
+    # -- refresh tokens ---------------------------------------------------
+
+    def store_refresh(self, *, user_id: str, digest: str, family_id: str,
+                       expires_at: datetime) -> RefreshToken:
+        token = RefreshToken(
+            token_id=_new_id("rft"), user_id=user_id, digest=digest,
+            family_id=family_id, expires_at=expires_at,
+        )
+        self._refresh[digest] = token
+        return token
+
+    def find_refresh(self, digest: str) -> RefreshToken | None:
+        return self._refresh.get(digest)
+
+    def consume_refresh(self, token: RefreshToken) -> None:
+        token.consumed_at = _now()
+
+    def revoke_family(self, family_id: str) -> int:
+        """Kill every token descended from one login.
+
+        Called when a consumed token is presented again, which means
+        either a copy is in circulation or the legitimate client
+        replayed. Both warrant re-authentication; only one is benign,
+        and there is no way to tell them apart from here.
+        """
+        revoked = 0
+        for token in self._refresh.values():
+            if token.family_id == family_id and token.revoked_at is None:
+                token.revoked_at = _now()
+                revoked += 1
+        return revoked
 
 
 #: Process-wide instance. Replaced by a Postgres-backed repository via the

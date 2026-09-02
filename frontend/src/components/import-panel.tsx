@@ -4,7 +4,10 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { SpinnerGapIcon, UploadSimpleIcon } from "@phosphor-icons/react/dist/ssr";
 
-import { apiBaseUrl, type DatasetInfo, type ImportRecord } from "@/lib/api";
+// `import type` only - a value import from api.ts would drag
+// next/headers into this client bundle and fail the build.
+import type { DatasetInfo, ImportRecord } from "@/lib/api";
+import { uploadImport } from "@/lib/work-actions";
 
 /**
  * Upload one source file.
@@ -36,26 +39,17 @@ export function ImportPanel({ datasets }: { datasets: DatasetInfo[] }) {
     const body = new FormData();
     body.set("dataset", dataset);
     body.set("file", file);
+    // A generated key so a retried request cannot import twice.
+    body.set("idempotencyKey", crypto.randomUUID());
 
-    try {
-      const response = await fetch(`${apiBaseUrl}/v1/imports`, {
-        method: "POST",
-        body,
-        // A generated key so a retried request cannot import twice.
-        headers: { "Idempotency-Key": crypto.randomUUID() },
-      });
-      const payload = await response.json();
-      if (!response.ok) {
-        setError(payload.detail ?? `upload failed (${response.status})`);
-      } else {
-        setResult(payload as ImportRecord);
-        router.refresh();
-      }
-    } catch {
-      setError(`cannot reach the API at ${apiBaseUrl}`);
-    } finally {
-      setBusy(false);
+    const outcome = await uploadImport(body);
+    if (!outcome.ok || !outcome.data) {
+      setError(outcome.error ?? "upload failed");
+    } else {
+      setResult(outcome.data);
+      router.refresh();
     }
+    setBusy(false);
   }
 
   const byCode = new Map<string, number>();

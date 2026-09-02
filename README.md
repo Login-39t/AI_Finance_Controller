@@ -85,20 +85,38 @@ Until then `/healthz` returns 200 and `/readyz` returns 503 naming the database 
 | `packages/reconciliation/` — rules R1–R6, bridge, 8 detectors, the gate | **Runs; false-clear rate 0.0000 on holdout** |
 | `tests/evaluation/` — held-out metrics vs ground truth | **`make eval`** |
 | `packages/ai_investigation/` — packet, redaction, schema, grounding verifier | **Runs; adversarially tested without an API key** |
-| API — imports, runs, exceptions, investigate | **13 endpoints; full flow verified over HTTP** |
+| API — imports, runs, exceptions, investigate | **18 endpoints; full flow verified over HTTP** |
 | Frontend wired to the live API | **Fixtures deleted; queue, case detail, imports, runs all live** |
-| Auth + RBAC | Not built |
+| Auth + RBAC | **Argon2id, rotating refresh tokens with reuse detection, four roles; every domain endpoint refuses an anonymous caller** |
+| Decision workflow | **`POST /v1/exceptions/{id}/decision` with role + materiality + reason-code checks, and an audit event** |
 
-**272 tests passing**, lint clean.
+**304 tests passing**, lint clean.
 
 ### The critical path, live
 
 ```
+POST /v1/auth/login            controller@ledgergraph.dev -> access token + refresh cookie
 POST /v1/imports          x6   3,571 rows accepted, 0 rejected
 POST /v1/reconciliation-runs   202 queued -> poll -> completed
 GET  /v1/exceptions            143 cases, sorted by money at risk
 GET  /v1/exceptions/{id}       packet: records, evidence, all 6 gate conditions
+POST /v1/exceptions/{id}/decision
 ```
+
+### The RBAC boundary, live
+
+Four demo accounts exist locally, one per role (password `ledgergraph-demo-2026`; the API refuses to create them when `ENVIRONMENT=production`). Every line below is a real response from the running API:
+
+| Caller | Case | Result |
+|---|---|---|
+| analyst | Rs 1,50,000 | `403 INSUFFICIENT_ROLE` — an analyst reads and investigates |
+| reviewer | Rs 3,54,165 | `403 CONTROLLER_APPROVAL_REQUIRED` — above the Rs 2,50,000 threshold |
+| controller | override, no reason code | `422 REASON_CODE_REQUIRED` |
+| controller | override + reason code | `200` — audit event names Chitra Controller, controller, `evidence_insufficient` |
+| controller | the same case again | `409 ALREADY_DECIDED` — the first verdict is never silently replaced |
+| reviewer | Rs 1,50,000 | `200` |
+
+A stolen refresh token is usable **once**. Replaying a consumed one returns `401 REFRESH_REUSED` and revokes the entire family, so the legitimate successor dies too — everyone re-authenticates, which is the correct response to a token you cannot distinguish from a copy.
 
 Persistence is behind a protocol with an in-memory implementation, so the API runs today without Postgres. That store has no durability, no concurrent writers, and none of the schema's constraints or triggers — it is correct for development and wrong for a deployment, which is why the Postgres implementation is not optional.
 

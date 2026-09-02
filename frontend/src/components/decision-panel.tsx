@@ -1,18 +1,23 @@
 "use client";
 
-import { useState } from "react";
-import { LockSimpleIcon, SpinnerGapIcon } from "@phosphor-icons/react/dist/ssr";
+import { useActionState, useState } from "react";
+import { useFormStatus } from "react-dom";
+import {
+  CheckCircleIcon,
+  LockSimpleIcon,
+  SpinnerGapIcon,
+} from "@phosphor-icons/react/dist/ssr";
 
+import { submitDecision, type DecisionState } from "@/lib/case-actions";
 import { formatMinor } from "@/lib/money";
-import { REASON_CODES, type Role } from "@/lib/types";
+import { REASON_CODES, type CaseResolution, type Role } from "@/lib/types";
 
-type Action = "approve" | "reject" | "override";
-type Phase = "idle" | "submitting" | "done" | "error";
+type Action = "approve" | "reject" | "override" | "dismiss";
 
 /**
  * The decision panel.
  *
- * Two things here are deliberate and worth not "improving" later:
+ * Three things here are deliberate and worth not "improving" later:
  *
  * 1. No optimistic update. A financial approval must reflect what the
  *    server actually did, including a 403 from the material-amount rule.
@@ -21,27 +26,42 @@ type Phase = "idle" | "submitting" | "done" | "error";
  *
  * 2. The disabled state explains *which* rule blocked the action and who
  *    can perform it. Hiding the button would be easier and would leave
- *    the analyst guessing. The server rejects the call either way; this
+ *    the analyst guessing. The server refuses the call either way - this
  *    is only about not wasting their time.
+ *
+ * 3. The checks below are duplicated on the server, and the server's copy
+ *    is the real one. This is a courtesy, not a control.
  */
 export function DecisionPanel({
+  caseId,
   amountAtRiskMinor,
   currency,
   requiresControllerApproval,
   viewerRole,
   reviewThresholdMinor,
+  decided,
 }: {
+  caseId: string;
   amountAtRiskMinor: string;
   currency: string;
   requiresControllerApproval: boolean;
   viewerRole: Role;
   reviewThresholdMinor: string;
+  decided?: {
+    resolution: CaseResolution;
+    reasonCode?: string | null;
+    note?: string | null;
+    by?: string | null;
+    byRole?: Role | null;
+    at?: string | null;
+  } | null;
 }) {
   const [action, setAction] = useState<Action>("approve");
   const [reasonCode, setReasonCode] = useState<string>("");
-  const [note, setNote] = useState("");
-  const [phase, setPhase] = useState<Phase>("idle");
-  const [message, setMessage] = useState<string | null>(null);
+  const [state, formAction] = useActionState<DecisionState, FormData>(
+    submitDecision,
+    { status: "idle", message: null },
+  );
 
   const canDecideAtAll = viewerRole !== "analyst";
   const blockedByAmount =
@@ -49,26 +69,67 @@ export function DecisionPanel({
   const blocked = !canDecideAtAll || blockedByAmount;
 
   const overrideNeedsReason = action === "override" && !reasonCode;
-  const disabled = blocked || phase === "submitting" || overrideNeedsReason;
 
   const blockReason = !canDecideAtAll
-    ? `An analyst cannot decide a case. A reviewer or controller must action this one.`
+    ? "An analyst cannot decide a case. A reviewer or controller must action this one."
     : `This case is above the ${formatMinor(reviewThresholdMinor, currency)} review threshold, so only a controller can approve it.`;
 
-  async function submit() {
-    setPhase("submitting");
-    setMessage(null);
-    // Placeholder for POST /v1/exceptions/{id}/decision with an
-    // Idempotency-Key. The server, not this component, is the authority.
-    await new Promise((r) => setTimeout(r, 600));
-    setPhase("error");
-    setMessage("Not wired up yet: the decision endpoint lands with apps/api.");
+  if (decided) {
+    return (
+      <section
+        className="border"
+        style={{
+          background: "var(--surface)",
+          borderColor: "var(--line)",
+          borderRadius: "var(--radius)",
+        }}
+      >
+        <header className="border-b px-4 py-2.5" style={{ borderColor: "var(--line)" }}>
+          <h2 className="text-[13px] font-semibold" style={{ color: "var(--ink)" }}>
+            Decision
+          </h2>
+        </header>
+        <div className="flex flex-col gap-2 px-4 py-3">
+          <p className="flex items-center gap-1.5 text-[13px]" style={{ color: "var(--ink)" }}>
+            <CheckCircleIcon size={14} weight="fill" style={{ color: "var(--ok)" }} />
+            <span className="capitalize">{decided.resolution}</span>
+          </p>
+          {decided.by && (
+            <p className="text-[12px]" style={{ color: "var(--ink-2)" }}>
+              {decided.by}
+              {decided.byRole ? ` · ${decided.byRole}` : ""}
+              {decided.at ? ` · ${new Date(decided.at).toLocaleString()}` : ""}
+            </p>
+          )}
+          {decided.reasonCode && (
+            <p className="text-[12px]" style={{ color: "var(--ink-2)" }}>
+              Reason:{" "}
+              {REASON_CODES.find((r) => r.code === decided.reasonCode)?.label ??
+                decided.reasonCode}
+            </p>
+          )}
+          {decided.note && (
+            <p className="text-[12.5px]" style={{ color: "var(--ink)" }}>
+              {decided.note}
+            </p>
+          )}
+          <p className="text-[11.5px]" style={{ color: "var(--ink-3)" }}>
+            A decided case is not re-decided in place. Reopening it is a separate,
+            audited action, so the first verdict is never silently replaced.
+          </p>
+        </div>
+      </section>
+    );
   }
 
   return (
     <section
       className="border"
-      style={{ background: "var(--surface)", borderColor: "var(--line)", borderRadius: "var(--radius)" }}
+      style={{
+        background: "var(--surface)",
+        borderColor: "var(--line)",
+        borderRadius: "var(--radius)",
+      }}
     >
       <header className="border-b px-4 py-2.5" style={{ borderColor: "var(--line)" }}>
         <h2 className="text-[13px] font-semibold" style={{ color: "var(--ink)" }}>
@@ -76,11 +137,14 @@ export function DecisionPanel({
         </h2>
       </header>
 
-      <div className="flex flex-col gap-3 px-4 py-3">
+      <form action={formAction} className="flex flex-col gap-3 px-4 py-3">
+        <input type="hidden" name="caseId" value={caseId} />
+        <input type="hidden" name="action" value={action} />
+
         <div className="flex flex-col gap-1.5">
           <span className="label">Action</span>
           <div className="flex gap-1">
-            {(["approve", "reject", "override"] as const).map((a) => {
+            {(["approve", "reject", "override", "dismiss"] as const).map((a) => {
               const isActive = action === a;
               return (
                 <button
@@ -109,6 +173,7 @@ export function DecisionPanel({
             </label>
             <select
               id="reason"
+              name="reasonCode"
               value={reasonCode}
               onChange={(e) => setReasonCode(e.target.value)}
               className="w-full border px-2 py-1.5 text-[12.5px]"
@@ -135,9 +200,8 @@ export function DecisionPanel({
           </label>
           <textarea
             id="note"
+            name="note"
             rows={3}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
             placeholder="What you checked, and what you concluded."
             className="w-full resize-y border px-2 py-1.5 text-[12.5px]"
             style={{
@@ -152,22 +216,11 @@ export function DecisionPanel({
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={submit}
-          disabled={disabled}
-          className="flex w-full items-center justify-center gap-2 whitespace-nowrap px-3 py-2 text-[12.5px] font-medium transition-colors duration-100 active:translate-y-px"
-          style={{
-            borderRadius: "var(--radius)",
-            background: disabled ? "var(--surface-2)" : "var(--flag)",
-            color: disabled ? "var(--ink-3)" : "#ffffff",
-            cursor: disabled ? "not-allowed" : "pointer",
-          }}
-        >
-          {phase === "submitting" && <SpinnerGapIcon size={13} weight="bold" className="animate-spin" />}
-          {blocked && <LockSimpleIcon size={13} weight="bold" />}
-          {phase === "submitting" ? "Submitting" : `Submit ${action}`}
-        </button>
+        <SubmitButton
+          action={action}
+          blocked={blocked}
+          overrideNeedsReason={overrideNeedsReason}
+        />
 
         {blocked && (
           <p
@@ -184,15 +237,50 @@ export function DecisionPanel({
           </p>
         )}
 
-        {phase === "error" && message && (
+        {state.status !== "idle" && state.message && (
           <p
             className="border-l-2 py-1 pl-2.5 text-[12px]"
-            style={{ borderColor: "var(--flag)", color: "var(--ink-2)" }}
+            style={{
+              borderColor: state.status === "ok" ? "var(--ok)" : "var(--flag)",
+              color: "var(--ink-2)",
+            }}
+            role="status"
           >
-            {message}
+            {state.message}
           </p>
         )}
-      </div>
+      </form>
     </section>
+  );
+}
+
+function SubmitButton({
+  action,
+  blocked,
+  overrideNeedsReason,
+}: {
+  action: Action;
+  blocked: boolean;
+  overrideNeedsReason: boolean;
+}) {
+  const { pending } = useFormStatus();
+  const disabled = blocked || pending || overrideNeedsReason;
+
+  return (
+    <button
+      type="submit"
+      disabled={disabled}
+      className="flex w-full items-center justify-center gap-2 whitespace-nowrap px-3 py-2 text-[12.5px] font-medium transition-colors duration-100 active:translate-y-px"
+      style={{
+        borderRadius: "var(--radius)",
+        background: disabled ? "var(--surface-2)" : "var(--flag)",
+        color: disabled ? "var(--ink-3)" : "#ffffff",
+        cursor: disabled ? "not-allowed" : "pointer",
+      }}
+    >
+      {pending && <SpinnerGapIcon size={13} weight="bold" className="animate-spin" />}
+      {blocked && <LockSimpleIcon size={13} weight="bold" />}
+      {pending ? "Submitting" : `Submit ${action}`}
+    </button>
   );
 }

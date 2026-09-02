@@ -242,3 +242,27 @@ SQL_TYPE_NAMES: dict[type[Enum], str] = {
     RuleTier: "rule_tier",
     TruthPartition: "truth_partition",
 }
+
+
+class ReasonCode(StrEnum):
+    """Controlled vocabulary for override and rejection reasons (PRD D1).
+
+    Deliberately **not** in `SQL_TYPE_NAMES`: the column is `TEXT` in
+    `db/schema.sql`, not a Postgres enum. Reason codes are the one piece
+    of this vocabulary a controller should be able to extend from a
+    config change rather than a migration, and a stale code must still
+    read back from an audit row written years earlier. Every other enum
+    here constrains a state machine the code branches on; this one only
+    labels a human's justification.
+    """
+
+    TIMING_DIFFERENCE = "timing_difference"
+    FEE_VARIANCE_ACCEPTED = "fee_variance_accepted"
+    BANK_ERROR_CONFIRMED = "bank_error_confirmed"
+    GATEWAY_ERROR_CONFIRMED = "gateway_error_confirmed"
+    DUPLICATE_CONFIRMED = "duplicate_confirmed"
+    MANUAL_ADJUSTMENT_POSTED = "manual_adjustment_posted"
+    EVIDENCE_INSUFFICIENT = "evidence_insufficient"
+    WRITTEN_OFF_IMMATERIAL = "written_off_immaterial"
+    ESCALATED_EXTERNALLY = "escalated_externally"
+    OTHER = "other"

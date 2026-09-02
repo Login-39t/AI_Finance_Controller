@@ -50,6 +50,13 @@ export type SourceSystem =
 
 export type Role = "analyst" | "reviewer" | "controller" | "admin";
 
+export type CaseResolution =
+  | "approved"
+  | "rejected"
+  | "overridden"
+  | "dismissed"
+  | "auto_resolved";
+
 export type AiValidationStatus =
   | "valid"
   | "schema_invalid"
@@ -179,6 +186,13 @@ export interface ExceptionCase {
   rulesetVersion: string;
   /** Above the policy threshold, only a controller may approve. */
   requiresControllerApproval: boolean;
+  /** Present once a person has decided. Null while the case is open. */
+  resolution?: CaseResolution | null;
+  reasonCode?: string | null;
+  decisionNote?: string | null;
+  decidedBy?: string | null;
+  decidedByRole?: Role | null;
+  decidedAt?: string | null;
 }
 
 /** The fat packet returned by GET /v1/exceptions/{id}. One request, one page. */
@@ -233,11 +247,23 @@ export const ENTITY_LABEL: Record<EntityType, string> = {
 };
 
 /** Reason codes for an override. A controlled list, per PRD story D1. */
+/**
+ * The controlled list an override must cite.
+ *
+ * These strings are the API's `ReasonCode` values verbatim. They were
+ * previously a set of invented uppercase codes that no endpoint would
+ * have accepted - harmless while the panel was a mock, and a guaranteed
+ * 422 the moment it was wired up.
+ */
 export const REASON_CODES = [
-  { code: "TIMING_ACCEPTED", label: "Timing variance accepted" },
-  { code: "SOURCE_DATA_CORRECTED", label: "Source data corrected upstream" },
-  { code: "FEE_SCHEDULE_VARIANCE", label: "Fee schedule variance confirmed" },
-  { code: "MANUAL_MATCH_VERIFIED", label: "Manual match verified with counterparty" },
-  { code: "WRITE_OFF_APPROVED", label: "Write-off approved" },
-  { code: "DUPLICATE_CONFIRMED", label: "Duplicate confirmed, reversal posted" },
+  { code: "timing_difference", label: "Timing difference" },
+  { code: "fee_variance_accepted", label: "Fee variance accepted" },
+  { code: "bank_error_confirmed", label: "Bank error confirmed" },
+  { code: "gateway_error_confirmed", label: "Gateway error confirmed" },
+  { code: "duplicate_confirmed", label: "Duplicate confirmed" },
+  { code: "manual_adjustment_posted", label: "Manual adjustment posted" },
+  { code: "evidence_insufficient", label: "Evidence insufficient" },
+  { code: "written_off_immaterial", label: "Written off, immaterial" },
+  { code: "escalated_externally", label: "Escalated externally" },
+  { code: "other", label: "Other, see note" },
 ] as const;

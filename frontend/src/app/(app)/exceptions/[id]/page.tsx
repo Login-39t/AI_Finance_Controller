@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeftIcon } from "@phosphor-icons/react/dist/ssr";
 
 import { getCase, latestRun } from "@/lib/api";
+import { currentUser } from "@/lib/session";
 import { ageInDays } from "@/lib/money";
 import { EXCEPTION_LABEL, SOURCE_LABEL } from "@/lib/types";
 import {
@@ -36,7 +37,6 @@ import { DecisionPanel } from "@/components/decision-panel";
 
 const REVIEW_THRESHOLD_MINOR = "25000000"; // ₹2,50,000, from the active policy
 const CANDIDATE_MARGIN = 0.05;
-const VIEWER_ROLE = "analyst" as const;
 
 const TIMELINE_STAGES = [
   "payment",
@@ -51,7 +51,11 @@ export default async function CaseDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [packet, run] = await Promise.all([getCase(id), latestRun()]);
+  const [packet, run, viewer] = await Promise.all([
+    getCase(id),
+    latestRun(),
+    currentUser(),
+  ]);
   if (packet === null) notFound();
 
   // The timeline is built from whichever stages this case actually
@@ -158,11 +162,24 @@ export default async function CaseDetailPage({
 
         <aside className="flex flex-col gap-4">
           <DecisionPanel
+            caseId={packet.id}
             amountAtRiskMinor={packet.amountAtRiskMinor}
             currency={packet.currency}
             requiresControllerApproval={packet.requiresControllerApproval}
-            viewerRole={VIEWER_ROLE}
+            viewerRole={viewer?.role ?? "analyst"}
             reviewThresholdMinor={REVIEW_THRESHOLD_MINOR}
+            decided={
+              packet.resolution
+                ? {
+                    resolution: packet.resolution,
+                    reasonCode: packet.reasonCode,
+                    note: packet.decisionNote,
+                    by: packet.decidedBy,
+                    byRole: packet.decidedByRole,
+                    at: packet.decidedAt,
+                  }
+                : null
+            }
           />
 
           {packet.gate.length > 0 && <GatePanel conditions={packet.gate} />}
