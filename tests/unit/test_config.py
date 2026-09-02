@@ -60,11 +60,36 @@ def test_ollama_needs_no_key_because_it_runs_locally():
     assert s.ai_provider == "ollama"
 
 
+def test_bedrock_boots_without_an_api_key():
+    """AWS credentials come from the environment or an instance role.
+
+    Requiring AI_API_KEY would make the instance-role case - the one
+    where no long-lived secret exists at all - impossible to
+    configure, which is backwards.
+    """
+    # Constructing without raising *is* the assertion. An earlier draft
+    # also checked `ai_api_key is None`, which read whatever key happened
+    # to be in the developer's .env - the same ambient-config mistake
+    # this file already fixed once.
+    s = _settings(ai_enabled=True, ai_provider="bedrock", ai_api_key=None,
+                  ai_model="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+                  aws_region="ap-south-1")
+    assert s.ai_provider == "bedrock"
+    assert s.aws_region == "ap-south-1"
+
+    # And the contrast: a hosted provider still demands one.
+    with pytest.raises(ValidationError):
+        _settings(ai_enabled=True, ai_provider="gemini", ai_api_key=None)
+
+
 # --------------------------------------------------------------------------
 # Typos fail loudly rather than silently selecting a default
 # --------------------------------------------------------------------------
 
-@pytest.mark.parametrize("provider", ["bedrock", "anthropic", "grok", "openai", ""])
+# `bedrock` was in this list until it was implemented. `grok` (xAI) and
+# `groq` stay, because they are different companies one character apart
+# and that is the typo this test exists for.
+@pytest.mark.parametrize("provider", ["anthropic", "grok", "openai", "vertex", ""])
 def test_unknown_provider_is_rejected(provider):
     """A Literal, not a free-text string. `grok` (xAI) and `groq` are
     different companies and one character apart, so a typo here must be a

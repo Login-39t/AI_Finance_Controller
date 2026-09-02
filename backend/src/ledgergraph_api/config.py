@@ -83,7 +83,9 @@ class Settings(BaseSettings):
     # prose and a label, never an outcome - so a smaller free model is a
     # cost decision here, not a correctness one.
     ai_enabled: bool = False
-    ai_provider: Literal["gemini", "groq", "openai_compatible", "ollama"] = "gemini"
+    ai_provider: Literal[
+        "gemini", "groq", "bedrock", "openai_compatible", "ollama"
+    ] = "gemini"
     ai_api_key: str | None = None
     # Pinned, not an alias, so a demo behaves the same tomorrow as today.
     # Google retires models on a schedule and a retired one answers 404
@@ -93,6 +95,10 @@ class Settings(BaseSettings):
     ai_model: str = "gemini-3.6-flash"
     # Only for openai_compatible / ollama; the hosted providers know their own.
     ai_base_url: str | None = None
+    # Bedrock only. Model availability is per-region and the model id
+    # usually needs a cross-region inference prefix (us.anthropic...),
+    # so both have to be stated rather than guessed.
+    aws_region: str = "us-east-1"
     ai_prompt_version: str = "investigate@v1"
     ai_timeout_seconds: float = 30.0
     ai_max_retries: int = 1
@@ -100,9 +106,15 @@ class Settings(BaseSettings):
     @field_validator("ai_api_key")
     @classmethod
     def _key_required_when_ai_enabled(cls, v: str | None, info) -> str | None:
-        # Ollama runs locally with no key, so it is exempt.
+        # Two providers are exempt, for different reasons: Ollama runs
+        # locally with no key at all, and Bedrock authenticates with AWS
+        # credentials that boto3 resolves from the environment or an
+        # instance role. Demanding AI_API_KEY for Bedrock would make the
+        # instance-role case - the one with no long-lived secret, and so
+        # the better one - impossible to configure.
+        keyless = {"ollama", "bedrock"}
         provider = info.data.get("ai_provider")
-        if info.data.get("ai_enabled") and provider != "ollama" and not v:
+        if info.data.get("ai_enabled") and provider not in keyless and not v:
             raise ValueError(
                 f"AI_ENABLED is true and AI_PROVIDER is {provider!r}, but AI_API_KEY is unset. "
                 "Set the key, set AI_PROVIDER=ollama to run a local model, "

@@ -170,6 +170,7 @@ async def request_investigation(case_id: str, user: CanRead) -> AiInvestigationD
             model=settings.ai_model,
             base_url=settings.ai_base_url,
             timeout=settings.ai_timeout_seconds,
+            region=settings.aws_region,
         )
     except ValueError as exc:
         raise ApiError(

@@ -505,8 +505,12 @@ def test_injected_text_cannot_smuggle_in_a_citation(case):
 # --------------------------------------------------------------------------
 
 def test_build_provider_rejects_an_unknown_name():
+    # Deliberately a name no vendor will ever ship. This test used
+    # "bedrock" until Bedrock was implemented, at which point it stopped
+    # raising - an example that became real is a fine way for a test to
+    # fail, but not a fine example to keep.
     with pytest.raises(ValueError, match="unknown AI provider"):
-        build_provider(provider="bedrock", api_key="k", model="m")
+        build_provider(provider="not-a-real-provider", api_key="k", model="m")
 
 
 def test_hosted_providers_require_a_key():
@@ -675,3 +679,127 @@ def test_the_dropped_constraints_are_still_enforced_when_parsing():
             "confidence": 0.5,
             "uncertainties": [],
         })
+
+
+# --------------------------------------------------------------------------
+# Bedrock
+# --------------------------------------------------------------------------
+
+class _FakeBedrockClient:
+    """Records what was sent, replays what was scripted."""
+
+    def __init__(self, response: dict | Exception) -> None:
+        self.response = response
+        self.calls: list[dict] = []
+
+    def converse(self, **kwargs):
+        self.calls.append(kwargs)
+        if isinstance(self.response, Exception):
+            raise self.response
+        return self.response
+
+
+def _bedrock_with(monkeypatch, response):
+    """Patch boto3.client so no AWS call is made."""
+    import boto3
+
+    fake = _FakeBedrockClient(response)
+    monkeypatch.setattr(boto3, "client", lambda *a, **k: fake)
+    return fake
+
+
+def _tool_response(payload: dict) -> dict:
+    return {
+        "output": {
+            "message": {
+                "content": [{"toolUse": {"name": "record_investigation",
+                                         "input": payload}}]
+            }
+        }
+    }
+
+
+def test_bedrock_forces_the_tool_call_that_produces_json(monkeypatch):
+    """Bedrock has no `responseSchema`.
+
+    Structured output comes from declaring a tool whose input schema is
+    the shape you want and then leaving the model no choice but to call
+    it. Without the forced `toolChoice` the model may answer in prose and
+    the parser downstream gets nothing to validate - which would surface
+    as a schema violation blamed on the model rather than on the request.
+    """
+    from ledgergraph_ai.client import BedrockProvider
+
+    fake = _bedrock_with(monkeypatch, _tool_response({"classification": "duplicate"}))
+    provider = BedrockProvider(model="us.anthropic.claude-sonnet-4-5-20250929-v1:0")
+
+    out = provider.complete("sys", "user", schema={"type": "object"})
+
+    assert json.loads(out) == {"classification": "duplicate"}
+
+    sent = fake.calls[0]
+    assert sent["toolConfig"]["toolChoice"] == {"tool": {"name": "record_investigation"}}
+    assert sent["inferenceConfig"]["temperature"] == 0.0
+    # The schema goes through unmodified - Bedrock accepts full JSON
+    # Schema, unlike Gemini's OpenAPI subset.
+    assert sent["toolConfig"]["tools"][0]["toolSpec"]["inputSchema"]["json"] == {
+        "type": "object"
+    }
+
+
+def test_bedrock_uses_converse_so_the_body_is_not_per_vendor(monkeypatch):
+    """`invoke_model` needs a different request body for Anthropic, Meta
+    and Amazon. Converse is one shape, which is what keeps a vendor
+    branch out of the class whose job is hiding the vendor."""
+    from ledgergraph_ai.client import BedrockProvider
+
+    fake = _bedrock_with(monkeypatch, _tool_response({"ok": True}))
+    BedrockProvider(model="meta.llama3-70b-instruct-v1:0").complete(
+        "sys", "user", schema={"type": "object"}
+    )
+
+    sent = fake.calls[0]
+    assert sent["system"] == [{"text": "sys"}]
+    assert sent["messages"] == [{"role": "user", "content": [{"text": "user"}]}]
+
+
+def test_bedrock_reports_a_prose_answer_as_a_provider_error(monkeypatch):
+    """A model that ignores toolChoice is a contract violation, and
+    saying so beats a KeyError three frames away."""
+    from ledgergraph_ai.client import BedrockProvider, ProviderError
+
+    _bedrock_with(monkeypatch, {
+        "output": {"message": {"content": [{"text": "I think it is a duplicate."}]}}
+    })
+
+    with pytest.raises(ProviderError, match="no tool call"):
+        BedrockProvider(model="m").complete("sys", "user", schema={})
+
+
+def test_bedrock_surfaces_an_aws_failure_with_its_reason(monkeypatch):
+    """AccessDeniedException and ValidationException are the two every
+    first-time Bedrock setup hits. The message has to survive."""
+    from ledgergraph_ai.client import BedrockProvider, ProviderError
+
+    _bedrock_with(monkeypatch, RuntimeError(
+        "AccessDeniedException: You don't have access to the model with the "
+        "specified model ID."
+    ))
+
+    with pytest.raises(ProviderError, match="model ID"):
+        BedrockProvider(model="m").complete("sys", "user", schema={})
+
+
+def test_bedrock_needs_no_api_key():
+    """boto3 resolves credentials from the environment or an instance
+    role. Requiring AI_API_KEY would make the role case - the one with no
+    long-lived secret - impossible to configure."""
+    from ledgergraph_ai.client import BedrockProvider, build_provider
+
+    provider = build_provider(
+        provider="bedrock", api_key=None,
+        model="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        region="ap-south-1",
+    )
+    assert isinstance(provider, BedrockProvider)
+    assert provider.region == "ap-south-1"

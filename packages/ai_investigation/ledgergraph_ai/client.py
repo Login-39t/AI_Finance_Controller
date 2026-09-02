@@ -369,9 +369,106 @@ class OpenAICompatibleProvider:
         return payload["choices"][0]["message"]["content"]
 
 
+@dataclass
+class BedrockProvider:
+    """AWS Bedrock, through the Converse API.
+
+    **Converse, not `invoke_model`.** `invoke_model` takes a different
+    request body per model family - Anthropic, Meta and Amazon each have
+    their own - so using it would put a per-vendor branch in a class whose
+    entire purpose is to hide the vendor. `converse` is one shape for all
+    of them, which is the only reason this stays forty lines.
+
+    **Structured output is a forced tool call.** Bedrock has no
+    `responseSchema`. The idiom is to declare a tool whose input schema is
+    the shape you want, then set `toolChoice` to that tool so the model
+    has no option but to "call" it. The arguments it passes are the JSON.
+    Unlike Gemini, Bedrock accepts full JSON Schema, so the schema goes
+    through unmodified.
+
+    **Credentials come from the environment**, not from `api_key`. boto3
+    resolves AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_REGION, and
+    on an EC2 or ECS host it picks up the instance role instead - which is
+    the whole reason to prefer Bedrock in a real deployment, since no
+    long-lived secret has to exist at all.
+    """
+
+    model: str
+    region: str = "us-east-1"
+    timeout: float = 30.0
+    name: str = field(init=False)
+
+    #: The tool the model is forced to call. The name is arbitrary and
+    #: never leaves this class.
+    TOOL_NAME = "record_investigation"
+
+    def __post_init__(self) -> None:
+        self.name = self.model
+
+    def complete(self, system: str, user: str, *, schema: dict) -> str:
+        try:
+            import boto3
+            from botocore.config import Config
+        except ImportError as exc:  # pragma: no cover - environment issue
+            raise ProviderError(
+                "AI_PROVIDER=bedrock needs boto3. Install it with "
+                "`pip install boto3`."
+            ) from exc
+
+        client = boto3.client(
+            "bedrock-runtime",
+            region_name=self.region,
+            config=Config(
+                read_timeout=self.timeout,
+                connect_timeout=min(self.timeout, 10.0),
+                # One retry only. The investigation layer has its own
+                # repair retry above this, and stacking the two would turn
+                # a 30-second timeout into minutes of a held request.
+                retries={"max_attempts": 1, "mode": "standard"},
+            ),
+        )
+
+        try:
+            response = client.converse(
+                modelId=self.model,
+                system=[{"text": system}],
+                messages=[{"role": "user", "content": [{"text": user}]}],
+                inferenceConfig={"temperature": 0.0},
+                toolConfig={
+                    "tools": [{
+                        "toolSpec": {
+                            "name": self.TOOL_NAME,
+                            "description": (
+                                "Record the investigation. Every field is required."
+                            ),
+                            "inputSchema": {"json": schema},
+                        }
+                    }],
+                    # Forced, not suggested. Without this the model may
+                    # answer in prose and the parser downstream gets
+                    # nothing to validate.
+                    "toolChoice": {"tool": {"name": self.TOOL_NAME}},
+                },
+            )
+        except Exception as exc:  # noqa: BLE001 - botocore raises many types
+            raise ProviderError(f"{type(exc).__name__}: {str(exc)[:300]}") from None
+
+        for block in response["output"]["message"]["content"]:
+            if "toolUse" in block:
+                return json.dumps(block["toolUse"]["input"])
+
+        # The model answered in prose despite toolChoice. That is a
+        # provider-side contract violation, and saying so beats a
+        # KeyError three frames away.
+        raise ProviderError(
+            f"{self.model} returned no tool call despite a forced toolChoice"
+        )
+
+
 def build_provider(
     *, provider: str, api_key: str | None, model: str,
     base_url: str | None = None, timeout: float = 30.0,
+    region: str | None = None,
 ) -> Provider:
     """Construct the configured provider. Unknown names fail loudly."""
     if provider == "gemini":
@@ -384,6 +481,13 @@ def build_provider(
         return OpenAICompatibleProvider(
             api_key=api_key, base_url="https://api.groq.com/openai/v1",
             model=model, timeout=timeout,
+        )
+    if provider == "bedrock":
+        # No api_key check: boto3 resolves credentials from the
+        # environment or an instance role, and demanding a key here would
+        # make the role case - the better one - impossible to configure.
+        return BedrockProvider(
+            model=model, region=region or "us-east-1", timeout=timeout
         )
     if provider in ("openai_compatible", "ollama"):
         if not base_url:

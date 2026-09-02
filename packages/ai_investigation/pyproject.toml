@@ -5,6 +5,12 @@ description = "Grounded investigation: evidence packet assembly, PII redaction, 
 requires-python = ">=3.11"
 dependencies = ["ledgergraph-domain", "ledgergraph-reconciliation", "pydantic>=2.7"]
 
+[project.optional-dependencies]
+# Only needed for AI_PROVIDER=bedrock. Kept optional so the default
+# install does not pull the AWS SDK for a provider most people will
+# not use - boto3 and its botocore dependency are ~80MB.
+bedrock = ["boto3>=1.35"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

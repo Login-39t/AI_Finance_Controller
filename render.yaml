@@ -82,3 +82,13 @@ services:
         value: gemini-3.6-flash
       - key: AI_API_KEY
         sync: false
+
+      # Bedrock only. Prefer an instance role where the platform
+      # supports one - a long-lived access key in an env var is a
+      # credential that cannot be rotated without a redeploy.
+      - key: AWS_REGION
+        value: us-east-1
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
