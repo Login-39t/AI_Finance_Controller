@@ -207,12 +207,91 @@ def _parse(raw: str) -> tuple[Investigation | None, str | None]:
 # Real providers
 # --------------------------------------------------------------------------
 
+#: Keys Gemini's `responseSchema` accepts. It is an OpenAPI 3.0 subset,
+#: not JSON Schema, and it rejects unknown keys outright rather than
+#: ignoring them - the response is a 400 naming the first offender.
+_GEMINI_SCHEMA_KEYS = frozenset({
+    "type", "format", "description", "nullable", "enum", "items",
+    "properties", "required", "minItems", "maxItems", "propertyOrdering",
+})
+
+
+def gemini_schema(schema: dict) -> dict:
+    """Strip a Pydantic JSON Schema down to what Gemini accepts.
+
+    Pydantic emits `additionalProperties`, `title`, `maxLength`,
+    `minimum` and friends. Gemini's `responseSchema` accepts none of
+    them and answers 400 - which is how this was found, because
+    `FakeProvider` never sees the wire format and so the unit tests were
+    green while the live call had never once succeeded.
+
+    Dropping the constraints is safe here, and that is worth being
+    explicit about rather than hoping: `responseSchema` only shapes the
+    decoding. Every value is still validated afterwards by
+    `Investigation`, the Pydantic model this schema was generated from,
+    with `maxLength` and `minimum` intact. So a model that returns an
+    over-long statement is rejected by the parser exactly as before -
+    the constraint moved from a hint to a check, and the check was
+    always the part that mattered.
+
+    Kept, deliberately, because they change what the model can emit at
+    all rather than merely describing it: `enum` closes the
+    classification set, and `required` and `items` define the shape.
+    """
+    if not isinstance(schema, dict):
+        return schema
+
+    cleaned: dict = {}
+    for key, value in schema.items():
+        if key not in _GEMINI_SCHEMA_KEYS:
+            continue
+        if key == "properties" and isinstance(value, dict):
+            cleaned[key] = {k: gemini_schema(v) for k, v in value.items()}
+        elif key == "items":
+            cleaned[key] = gemini_schema(value)
+        else:
+            cleaned[key] = value
+    return cleaned
+
+
+def _read_json(request, timeout: float) -> dict:
+    """Send a request and return the parsed body.
+
+    On an HTTP error, `urlopen` raises with nothing but the status line -
+    "HTTP Error 400: Bad Request" - and every provider puts the reason
+    that actually matters in the *body*. Discarding it turned a one-line
+    diagnosis ("Unknown name additionalProperties", "model no longer
+    available", "project denied access") into an afternoon.
+
+    The body is truncated and the URL never appears in the message,
+    because the API key is a query parameter on the Gemini endpoint and
+    this string is written to an audit row.
+    """
+    import urllib.error
+    import urllib.request
+
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            return json.loads(response.read())
+    except urllib.error.HTTPError as exc:
+        try:
+            detail = json.loads(exc.read().decode())
+            message = detail.get("error", {}).get("message") or str(detail)
+        except Exception:  # noqa: BLE001 - a non-JSON error body is still one
+            message = exc.reason or "no detail"
+        raise ProviderError(f"HTTP {exc.code}: {str(message)[:300]}") from None
+
+
+class ProviderError(RuntimeError):
+    """A provider refused the request, carrying its own explanation."""
+
+
 @dataclass
 class GeminiProvider:
     """Google AI Studio. Native `responseSchema` constrained decoding."""
 
     api_key: str
-    model: str = "gemini-2.5-flash"
+    model: str = "gemini-3.6-flash"
     timeout: float = 30.0
     name: str = field(init=False)
 
@@ -231,7 +310,7 @@ class GeminiProvider:
             "contents": [{"role": "user", "parts": [{"text": user}]}],
             "generationConfig": {
                 "responseMimeType": "application/json",
-                "responseSchema": schema,
+                "responseSchema": gemini_schema(schema),
                 "temperature": 0.0,
             },
         }).encode()
@@ -239,8 +318,7 @@ class GeminiProvider:
         request = urllib.request.Request(
             url, data=body, headers={"Content-Type": "application/json"}
         )
-        with urllib.request.urlopen(request, timeout=self.timeout) as response:
-            payload = json.loads(response.read())
+        payload = _read_json(request, self.timeout)
         return payload["candidates"][0]["content"]["parts"][0]["text"]
 
 
@@ -287,8 +365,7 @@ class OpenAICompatibleProvider:
         request = urllib.request.Request(
             f"{self.base_url.rstrip('/')}/chat/completions", data=body, headers=headers
         )
-        with urllib.request.urlopen(request, timeout=self.timeout) as response:
-            payload = json.loads(response.read())
+        payload = _read_json(request, self.timeout)
         return payload["choices"][0]["message"]["content"]
 
 

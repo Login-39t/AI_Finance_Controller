@@ -385,14 +385,29 @@ async def test_queue_before_any_run_is_404_not_an_empty_list(client):
 # --------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_investigation_is_refused_cleanly_when_ai_is_disabled(client, dataset):
-    """The default state. It must be a clear 503, not a crash."""
+async def test_investigation_is_refused_cleanly_when_ai_is_disabled(
+    client, dataset, monkeypatch
+):
+    """AI off must be a clear 503, not a crash.
+
+    `AI_ENABLED=false` is forced rather than assumed. Reading it from the
+    developer's `.env` made this test pass or fail depending on a setting
+    that has nothing to do with what it checks.
+    """
+    from ledgergraph_api.config import get_settings
+
     await _upload_all(client, dataset)
     await _run_to_completion(client)
 
     queue = (await client.get("/v1/exceptions?limit=200")).json()
     case_id = queue["items"][0]["id"]
 
-    response = await client.post(f"/v1/exceptions/{case_id}/investigate")
-    assert response.status_code == 503
-    assert response.json()["code"] == "AI_DISABLED"
+    get_settings.cache_clear()
+    monkeypatch.setenv("AI_ENABLED", "false")
+    monkeypatch.delenv("AI_API_KEY", raising=False)
+    try:
+        response = await client.post(f"/v1/exceptions/{case_id}/investigate")
+        assert response.status_code == 503
+        assert response.json()["code"] == "AI_DISABLED"
+    finally:
+        get_settings.cache_clear()

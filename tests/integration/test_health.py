@@ -53,9 +53,26 @@ async def test_readiness_reports_degraded_when_the_database_is_unreachable(clien
 
 
 @pytest.mark.asyncio
-async def test_ai_is_reported_as_disabled_until_a_key_is_configured(client):
-    r = await client.get("/readyz")
-    assert r.json()["checks"]["ai"]["enabled"] is False
+async def test_readyz_reports_whether_ai_is_configured(client, monkeypatch):
+    """Both states, forced - not whichever one `.env` happens to hold.
+
+    This test used to assert `enabled is False`, which passed only while
+    the developer's own `.env` had AI switched off. Turning it on broke a
+    test that had nothing to do with the change: the suite was reading
+    ambient configuration, so it was reporting the machine's state rather
+    than the code's behaviour.
+    """
+    from ledgergraph_api.config import get_settings
+
+    for enabled in (False, True):
+        get_settings.cache_clear()
+        monkeypatch.setenv("AI_ENABLED", "true" if enabled else "false")
+        monkeypatch.setenv("AI_API_KEY", "test-key-not-used")
+        try:
+            r = await client.get("/readyz")
+            assert r.json()["checks"]["ai"]["enabled"] is enabled
+        finally:
+            get_settings.cache_clear()
 
 
 @pytest.mark.asyncio

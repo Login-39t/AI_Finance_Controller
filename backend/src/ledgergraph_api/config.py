@@ -85,7 +85,12 @@ class Settings(BaseSettings):
     ai_enabled: bool = False
     ai_provider: Literal["gemini", "groq", "openai_compatible", "ollama"] = "gemini"
     ai_api_key: str | None = None
-    ai_model: str = "gemini-2.5-flash"
+    # Pinned, not an alias, so a demo behaves the same tomorrow as today.
+    # Google retires models on a schedule and a retired one answers 404
+    # ("no longer available to new users") rather than degrading - if
+    # that happens, `gemini-flash-latest` always resolves to a current
+    # one, at the cost of reproducibility.
+    ai_model: str = "gemini-3.6-flash"
     # Only for openai_compatible / ollama; the hosted providers know their own.
     ai_base_url: str | None = None
     ai_prompt_version: str = "investigate@v1"

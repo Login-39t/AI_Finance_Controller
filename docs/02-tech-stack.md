@@ -27,7 +27,7 @@ A fourth filter runs underneath all three: **does it help the system show its wo
 | Background work | **FastAPI `BackgroundTasks`** + DB-persisted run state | — | Zero infra. ARQ + Redis is a documented one-file upgrade. |
 | Matching | **Pure Python + SQLAlchemy Core + Polars** | Polars 1.x | Deterministic rules as set-based SQL; Polars only for the generator and eval harness. |
 | Auth | Argon2id (`argon2-cffi`) + JWT access (`PyJWT`) + rotating httpOnly refresh cookie | — | **Built, deviating from the `fastapi-users` choice below.** Every dangerous primitive still comes from a library; only the glue is ours. |
-| AI | **Provider-neutral**, schema-constrained JSON. Default `gemini-2.5-flash` (free tier) | — | The architecture distrusts the model, so provider is config. Free tiers suffice; Bedrock is not free. |
+| AI | **Provider-neutral**, schema-constrained JSON. Default `gemini-3.6-flash` | — | The architecture distrusts the model, so provider is config. Free tiers suffice; Bedrock is not free. Pin the model — Google retires them, and a retired one answers 404 rather than degrading. |
 | Testing | **pytest + httpx + testcontainers**, Vitest, Playwright | — | Golden-file rule tests and the eval harness are the credibility of the whole submission. |
 | Local deploy | **Docker Compose** | — | `docker compose up` → Postgres + API + web. Two services, one command. |
 | Hosted deploy | **Render (API + Postgres) + Vercel (web)** | — | `render.yaml` is infrastructure-as-code; Vercel is Next.js's home turf. Same Dockerfile both ways. |

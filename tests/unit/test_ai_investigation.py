@@ -588,3 +588,90 @@ def test_a_real_case_survives_the_full_pipeline(tmp_path):
     })
     outcome = investigate(packet, FakeProvider(responses=[answer]))
     assert outcome.ok, outcome.errors
+
+
+# --------------------------------------------------------------------------
+# The Gemini wire format
+# --------------------------------------------------------------------------
+
+def test_gemini_schema_drops_the_keys_gemini_rejects():
+    """`responseSchema` is an OpenAPI subset, not JSON Schema.
+
+    This is a regression test for a bug that unit tests could not have
+    caught: `FakeProvider` never sees the wire format, so every test here
+    was green while the live Gemini call had never once succeeded. It
+    answered 400 naming `additionalProperties` - which Pydantic emits and
+    Gemini rejects outright rather than ignoring.
+    """
+    from ledgergraph_ai.client import gemini_schema
+    from ledgergraph_ai.schemas import json_schema
+
+    def every_key(node, seen: set) -> set:
+        if isinstance(node, dict):
+            seen.update(node)
+            for value in node.values():
+                every_key(value, seen)
+        elif isinstance(node, list):
+            for value in node:
+                every_key(value, seen)
+        return seen
+
+    keys = every_key(gemini_schema(json_schema()), set())
+
+    rejected = {
+        "additionalProperties", "title", "maxLength", "minLength",
+        "maximum", "minimum", "$schema", "$defs", "$ref", "default",
+    }
+    assert not (keys & rejected), (
+        f"schema still carries keys Gemini rejects: {sorted(keys & rejected)}"
+    )
+
+
+def test_gemini_schema_keeps_what_actually_constrains_the_output():
+    """Stripping is not the same as gutting.
+
+    `enum` closes the classification set and `required`/`items` define the
+    shape - those change what the model can emit at all. The dropped
+    constraints (maxLength, minimum) only described it, and `Investigation`
+    still enforces them when parsing the response, so nothing became
+    unchecked.
+    """
+    from ledgergraph_ai.client import gemini_schema
+    from ledgergraph_ai.schemas import json_schema
+
+    cleaned = gemini_schema(json_schema())
+
+    assert cleaned["type"] == "object"
+    assert "classification" in cleaned["properties"]
+    assert cleaned["properties"]["classification"]["enum"], (
+        "the closed classification set is what stops a hallucinated category"
+    )
+    assert cleaned["required"], "required fields were stripped"
+    assert cleaned["properties"]["hypotheses"]["items"]["properties"], (
+        "nested object properties were flattened away"
+    )
+
+
+def test_the_dropped_constraints_are_still_enforced_when_parsing():
+    """The check that made dropping them safe.
+
+    A model returning a 900-character statement must still be rejected,
+    even though Gemini was never told the 600-character limit.
+    """
+    import pytest as _pytest
+    from ledgergraph_ai.schemas import Investigation
+    from pydantic import ValidationError
+
+    with _pytest.raises(ValidationError):
+        Investigation.model_validate({
+            "classification": "missing_bank_credit",
+            "hypotheses": [{
+                "statement": "x" * 900,
+                "likelihood": 0.5,
+                "evidence_ids": ["EV-1"],
+            }],
+            "recommended_action": "check",
+            "requires_human_approval": True,
+            "confidence": 0.5,
+            "uncertainties": [],
+        })
