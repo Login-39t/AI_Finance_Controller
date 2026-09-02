@@ -99,6 +99,14 @@ class Settings(BaseSettings):
     # usually needs a cross-region inference prefix (us.anthropic...),
     # so both have to be stated rather than guessed.
     aws_region: str = "us-east-1"
+    # Optional. When set (from .env or the platform's env vars) they are
+    # passed to boto3 explicitly; when absent, boto3 falls back to its own
+    # resolution chain - shared credentials file, or an EC2/ECS instance
+    # role, which is the preferred production path since no long-lived
+    # secret has to exist. Threading them through here rather than relying
+    # only on os.environ makes local .env behave like every other provider.
+    aws_access_key_id: str | None = None
+    aws_secret_access_key: str | None = None
     ai_prompt_version: str = "investigate@v1"
     ai_timeout_seconds: float = 30.0
     ai_max_retries: int = 1

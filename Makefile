@@ -10,7 +10,7 @@ install:
 
 # Backend on :8000. PYTHONPATH covers the app and the framework-free domain package.
 api:
-	PYTHONPATH="backend/src;packages/domain" $(PY) -m uvicorn ledgergraph_api.main:app --reload --port 8000
+	PYTHONPATH="backend/src;packages/domain;packages/reconciliation;packages/ai_investigation" $(PY) -m uvicorn ledgergraph_api.main:app --reload --port 8000
 
 # Frontend on :3000.
 web:

@@ -155,6 +155,7 @@ export default async function CaseDetailPage({
           {packet.transactions.length > 0 && <RecordList records={packet.transactions} />}
 
           <AiPanel
+            caseId={packet.id}
             investigation={packet.aiInvestigations[0] ?? null}
             evidence={packet.evidence}
           />

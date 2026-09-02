@@ -28,6 +28,13 @@ from .verify import VerificationResult, verify
 
 PROMPT_VERSION = "investigate@v1"
 
+#: A User-Agent is not optional. Groq (and other OpenAI-compatible
+#: endpoints) sit behind Cloudflare, which returns 403 to the default
+#: `Python-urllib/x.y` agent - the request never reaches the model, and
+#: the failure looks like an auth problem rather than a blocked client.
+#: Any non-default value clears it; this one also identifies the caller.
+_USER_AGENT = "ledgergraph/0.1"
+
 SYSTEM_PROMPT = """\
 You are assisting a finance operations analyst investigating a \
 reconciliation exception. You are given an evidence packet that a \
@@ -316,7 +323,8 @@ class GeminiProvider:
         }).encode()
 
         request = urllib.request.Request(
-            url, data=body, headers={"Content-Type": "application/json"}
+            url, data=body,
+            headers={"Content-Type": "application/json", "User-Agent": _USER_AGENT},
         )
         payload = _read_json(request, self.timeout)
         return payload["candidates"][0]["content"]["parts"][0]["text"]
@@ -358,7 +366,7 @@ class OpenAICompatibleProvider:
             },
         }).encode()
 
-        headers = {"Content-Type": "application/json"}
+        headers = {"Content-Type": "application/json", "User-Agent": _USER_AGENT}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
 
@@ -386,16 +394,27 @@ class BedrockProvider:
     Unlike Gemini, Bedrock accepts full JSON Schema, so the schema goes
     through unmodified.
 
-    **Credentials come from the environment**, not from `api_key`. boto3
-    resolves AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_REGION, and
-    on an EC2 or ECS host it picks up the instance role instead - which is
-    the whole reason to prefer Bedrock in a real deployment, since no
-    long-lived secret has to exist at all.
+    **Credentials, not `api_key`.** When `aws_access_key_id` /
+    `aws_secret_access_key` are supplied (from config, which reads .env or
+    the platform's env vars) they are passed to boto3 explicitly. When
+    they are None, boto3 resolves its own chain - AWS_ACCESS_KEY_ID /
+    AWS_SECRET_ACCESS_KEY, the shared credentials file, or on an EC2/ECS
+    host the instance role, which is the whole reason to prefer Bedrock in
+    a real deployment since no long-lived secret has to exist at all.
+    Passing None to boto3.client is identical to omitting it, so the
+    instance-role path is untouched.
     """
 
     model: str
     region: str = "us-east-1"
     timeout: float = 30.0
+    #: Optional explicit credentials. When None (the default), boto3
+    #: resolves them from its own chain - env vars, shared credentials
+    #: file, or an instance role. Passing None to boto3.client is
+    #: identical to not passing them, so the instance-role path is
+    #: untouched; a local .env simply fills them in.
+    aws_access_key_id: str | None = None
+    aws_secret_access_key: str | None = None
     name: str = field(init=False)
 
     #: The tool the model is forced to call. The name is arbitrary and
@@ -418,6 +437,8 @@ class BedrockProvider:
         client = boto3.client(
             "bedrock-runtime",
             region_name=self.region,
+            aws_access_key_id=self.aws_access_key_id,
+            aws_secret_access_key=self.aws_secret_access_key,
             config=Config(
                 read_timeout=self.timeout,
                 connect_timeout=min(self.timeout, 10.0),
@@ -469,6 +490,8 @@ def build_provider(
     *, provider: str, api_key: str | None, model: str,
     base_url: str | None = None, timeout: float = 30.0,
     region: str | None = None,
+    aws_access_key_id: str | None = None,
+    aws_secret_access_key: str | None = None,
 ) -> Provider:
     """Construct the configured provider. Unknown names fail loudly."""
     if provider == "gemini":
@@ -487,7 +510,9 @@ def build_provider(
         # environment or an instance role, and demanding a key here would
         # make the role case - the better one - impossible to configure.
         return BedrockProvider(
-            model=model, region=region or "us-east-1", timeout=timeout
+            model=model, region=region or "us-east-1", timeout=timeout,
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
         )
     if provider in ("openai_compatible", "ollama"):
         if not base_url:

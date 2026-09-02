@@ -16,6 +16,7 @@ import type {
   Transaction,
 } from "@/lib/types";
 import { ENTITY_LABEL, SOURCE_LABEL } from "@/lib/types";
+import { InvestigateButton } from "./investigate-button";
 import { Money, Panel } from "./primitives";
 
 // --------------------------------------------------------------------------
@@ -412,9 +413,11 @@ const AI_FAILURE_COPY: Record<string, string> = {
  * at a computed fact or a generated sentence.
  */
 export function AiPanel({
+  caseId,
   investigation,
   evidence,
 }: {
+  caseId: string;
   investigation: AiInvestigation | null;
   evidence: Evidence[];
 }) {
@@ -534,6 +537,10 @@ export function AiPanel({
           </p>
         </div>
       )}
+
+      <footer className="border-t px-4 py-3" style={{ borderColor: "var(--line)" }}>
+        <InvestigateButton caseId={caseId} hasInvestigation={investigation !== null} />
+      </footer>
     </section>
   );
 }

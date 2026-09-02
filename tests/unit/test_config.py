@@ -16,9 +16,12 @@ SECRET = "x" * 40
 
 
 def _settings(**overrides) -> Settings:
+    # _env_file=None makes these tests hermetic: they assert the code's
+    # defaults and validation rules, which must not depend on whatever the
+    # developer happens to have in a local .env (e.g. AI_PROVIDER=bedrock).
     base = {"jwt_secret": SECRET}
     base.update(overrides)
-    return Settings(**base)  # type: ignore[arg-type]
+    return Settings(_env_file=None, **base)  # type: ignore[arg-type]
 
 
 # --------------------------------------------------------------------------

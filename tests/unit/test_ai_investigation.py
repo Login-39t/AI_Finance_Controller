@@ -524,6 +524,46 @@ def test_local_providers_require_a_base_url():
         build_provider(provider="ollama", api_key=None, model="m", base_url=None)
 
 
+def test_urllib_providers_send_a_user_agent(monkeypatch):
+    """Cloudflare (in front of Groq and others) returns 403 to the default
+    `Python-urllib/x.y` agent. The request then never reaches the model and
+    the failure masquerades as an auth error. Every urllib-based provider
+    must set a non-default User-Agent."""
+    import urllib.request
+
+    captured: dict[str, str | None] = {}
+
+    class _FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+        def read(self):
+            # A body valid for whichever provider parses it.
+            return json.dumps({
+                "candidates": [{"content": {"parts": [{"text": "{}"}]}}],
+                "choices": [{"message": {"content": "{}"}}],
+            }).encode()
+
+    def fake_urlopen(request, timeout=None):
+        captured["ua"] = request.get_header("User-agent")
+        return _FakeResponse()
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+
+    for provider in ("gemini", "groq"):
+        captured.clear()
+        p = build_provider(provider=provider, api_key="k", model="m")
+        p.complete("sys", "user", schema={"type": "object"})
+        ua = captured.get("ua")
+        assert ua, f"{provider} sent no User-Agent"
+        assert "urllib" not in ua.lower(), (
+            f"{provider} left the default urllib User-Agent, which Cloudflare 403s"
+        )
+
+
 def test_ollama_needs_no_key():
     provider = build_provider(
         provider="ollama", api_key=None, model="qwen",
