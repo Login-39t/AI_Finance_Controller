@@ -23,9 +23,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from . import __version__
 from .config import Settings, get_settings
-from .db import dispose_engine
+from .db import dispose_engine, get_sessionmaker
 from .errors import register_error_handlers
 from .routers import auth, exceptions, health, imports, matches, reports, runs
+from .store import set_repository
 
 
 def _configure_logging(settings: Settings) -> None:
@@ -58,9 +59,24 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         ruleset=settings.ruleset_version,
         ai_enabled=settings.ai_enabled,
     )
-    # The database is not probed here on purpose. Startup must not depend
-    # on it; /readyz reports its state instead.
-    seeded = auth.seed_demo_users()
+    # The database is not probed here on purpose when running on the
+    # in-memory store: startup must not depend on it, and /readyz
+    # reports its state instead. With PERSISTENCE=postgres it is a hard
+    # dependency and failing loudly here is correct - a service that
+    # silently falls back to a non-durable store would accept every
+    # write and lose it.
+    if settings.persistence == "postgres":
+        from .store_postgres import bootstrap
+
+        set_repository(await bootstrap(get_sessionmaker()))
+        log.info("api.persistence", backend="postgres")
+    else:
+        log.info(
+            "api.persistence", backend="memory",
+            warning="non-durable; no constraints or triggers",
+        )
+
+    seeded = await auth.seed_demo_users()
     if seeded:
         log.info("api.demo_users_seeded", count=seeded)
 

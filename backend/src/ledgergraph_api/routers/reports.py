@@ -52,8 +52,8 @@ def _rupees(minor: int) -> str:
     return f"{sign}{whole}.{paise:02d}"
 
 
-def _current_run():
-    record = get_repository().latest_run()
+async def _current_run():
+    record = await get_repository().latest_run()
     if record is None or record.result is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
@@ -124,10 +124,10 @@ def _severity_order(name: str) -> int:
             summary="Close-readiness overview for the current run")
 async def overview(_: CanRead) -> OverviewDTO:
     repo = get_repository()
-    record = _current_run()
+    record = await _current_run()
     result: RunResult = record.result
     policy = Policy()
-    decisions = repo.all_decisions()
+    decisions = await repo.all_decisions()
 
     cases = result.cases
     exception_value = sum(c.amount_at_risk_minor for c in cases)
@@ -248,9 +248,9 @@ async def export_exceptions(
     than the screen is worse than no export.
     """
     repo = get_repository()
-    record = _current_run()
+    record = await _current_run()
     policy = Policy()
-    decisions = repo.all_decisions()
+    decisions = await repo.all_decisions()
 
     cases = record.result.cases
     if severity:
@@ -305,7 +305,7 @@ async def export_matches(_: CanRead) -> StreamingResponse:
     A reconciliation report that shows only what failed is half a report.
     The auto-resolved rows are the ones an auditor samples.
     """
-    record = _current_run()
+    record = await _current_run()
 
     rows = []
     for group in record.result.groups:
@@ -352,12 +352,12 @@ async def export_audit(_: CanRead) -> StreamingResponse:
     outside the system can use.
     """
     repo = get_repository()
-    record = _current_run()
+    record = await _current_run()
 
     events = []
     for case in record.result.cases:
-        events.extend(repo.audit_for(case.case_id))
-    events.extend(repo.audit_for(record.run_id))
+        events.extend(await repo.audit_for(case.case_id))
+    events.extend(await repo.audit_for(record.run_id))
     events.sort(key=lambda e: e.created_at)
 
     rows = [

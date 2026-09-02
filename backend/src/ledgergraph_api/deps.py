@@ -50,7 +50,7 @@ async def current_user(
         raise _unauthenticated(exc.code.lower(), str(exc)) from exc
 
     repo: Repository = get_repository()
-    user = repo.get_user(claims.user_id)
+    user = await repo.get_user(claims.user_id)
     if user is None:
         # The token is validly signed but names nobody - a deleted user,
         # or a token minted against a different store. Either way it is

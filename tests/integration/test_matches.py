@@ -45,7 +45,7 @@ def dataset(tmp_path_factory) -> Path:
 @pytest.fixture
 async def client(dataset):
     reset_repository()
-    seed_demo_users()
+    await seed_demo_users()
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         token = (await c.post("/v1/auth/login", json={

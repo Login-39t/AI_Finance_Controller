@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import pytest
 from ledgergraph_api.config import Settings
+from pydantic import ValidationError
 
 SECRET = "x" * 40
 
@@ -128,3 +129,34 @@ def test_alembic_derives_its_sync_url_from_the_same_value(monkeypatch):
     app_url = Settings(database_url="postgresql://u:p@h:5432/d").database_url
     assert "+asyncpg" in app_url
     assert app_url.replace("+asyncpg", "+psycopg") == "postgresql+psycopg://u:p@h:5432/d"
+
+
+# --------------------------------------------------------------------------
+# Persistence
+# --------------------------------------------------------------------------
+
+def test_the_in_memory_store_is_refused_in_production(monkeypatch):
+    """The store's own docstring says it is wrong for a deployment.
+
+    This is what stops that from being a comment nobody reads. The
+    failure mode it prevents is the quiet one: every decision accepted,
+    every audit event written, and all of it gone on the next restart.
+    """
+    monkeypatch.setenv("JWT_SECRET", SECRET)
+    with pytest.raises(ValidationError) as exc:
+        Settings(jwt_secret=SECRET, environment="production",
+                 persistence="memory", seed_demo_users=False)
+    assert "PERSISTENCE=postgres" in str(exc.value)
+
+
+def test_postgres_is_accepted_in_production(monkeypatch):
+    monkeypatch.setenv("JWT_SECRET", SECRET)
+    settings = Settings(jwt_secret=SECRET, environment="production",
+                        persistence="postgres", seed_demo_users=False)
+    assert settings.persistence == "postgres"
+
+
+def test_memory_remains_the_local_default(monkeypatch):
+    """Local development must not require a database to boot."""
+    monkeypatch.setenv("JWT_SECRET", SECRET)
+    assert Settings(jwt_secret=SECRET).persistence == "memory"

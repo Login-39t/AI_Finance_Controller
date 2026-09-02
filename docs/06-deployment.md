@@ -55,7 +55,7 @@ groups — and a migration without those is not the same schema.
 
 ### Until a database exists
 
-The API runs anyway. Persistence sits behind a protocol with an in-memory
+The API runs anyway — `PERSISTENCE` defaults to `memory`, and `config.py` refuses that value when `ENVIRONMENT=production`. Persistence sits behind a protocol with an in-memory
 implementation, so every endpoint works, the engine runs, and the
 frontend is live. `/healthz` returns 200; `/readyz` returns 503 naming the
 database as the reason. That is the correct behaviour rather than a
@@ -183,6 +183,7 @@ with the app, `httpOnly`, and `secure` in production.
 | `render.yaml`, secrets as `sync: false` / `generateValue` | Written |
 | `docker-compose.yml` with a real health gate | Written |
 | Driver normalisation for managed Postgres | **Written and tested** |
+| Postgres `Repository` implementation | Written; **never executed against a server** |
 | `db/schema.sql` executed against a real Postgres | **Never** — no database has been reachable from this machine |
 
 That last row is the honest one. The schema is parsed with

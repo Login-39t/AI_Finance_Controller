@@ -157,39 +157,39 @@ class AuditEvent:
 class Repository(Protocol):
     """What the service layer needs. Deliberately narrow."""
 
-    def create_import(self, *, dataset: str, filename: str,
+    async def create_import(self, *, dataset: str, filename: str,
                        idempotency_key: str | None, content_sha256: str) -> ImportRecord: ...
-    def find_import_by_key(self, key: str) -> ImportRecord | None: ...
-    def find_import_by_hash(self, sha: str) -> ImportRecord | None: ...
-    def get_import(self, import_id: str) -> ImportRecord | None: ...
-    def list_imports(self) -> list[ImportRecord]: ...
-    def add_transactions(self, import_id: str,
+    async def find_import_by_key(self, key: str) -> ImportRecord | None: ...
+    async def find_import_by_hash(self, sha: str) -> ImportRecord | None: ...
+    async def get_import(self, import_id: str) -> ImportRecord | None: ...
+    async def list_imports(self) -> list[ImportRecord]: ...
+    async def add_transactions(self, import_id: str,
                           transactions: list[CanonicalTransaction]) -> None: ...
-    def all_transactions(self) -> list[CanonicalTransaction]: ...
-    def create_run(self, ruleset_version: str) -> RunRecord: ...
-    def get_run(self, run_id: str) -> RunRecord | None: ...
-    def list_runs(self) -> list[RunRecord]: ...
-    def latest_run(self) -> RunRecord | None: ...
-    def save_run_result(self, run_id: str, result: RunResult) -> None: ...
-    def get_case(self, case_id: str) -> ExceptionCase | None: ...
-    def get_group(self, group_id: str) -> MatchGroup | None: ...
-    def add_investigation(self, case_id: str, outcome: InvestigationOutcome) -> None: ...
-    def investigations(self, case_id: str) -> list[InvestigationOutcome]: ...
-    def record_decision(self, decision: CaseDecision) -> None: ...
-    def get_decision(self, case_id: str) -> CaseDecision | None: ...
-    def all_decisions(self) -> dict[str, CaseDecision]: ...
-    def add_audit(self, event: AuditEvent) -> None: ...
-    def audit_for(self, entity_id: str) -> list[AuditEvent]: ...
-    def create_user(self, *, email: str, hashed_password: str, full_name: str,
+    async def all_transactions(self) -> list[CanonicalTransaction]: ...
+    async def create_run(self, ruleset_version: str) -> RunRecord: ...
+    async def get_run(self, run_id: str) -> RunRecord | None: ...
+    async def list_runs(self) -> list[RunRecord]: ...
+    async def latest_run(self) -> RunRecord | None: ...
+    async def save_run_result(self, run_id: str, result: RunResult) -> None: ...
+    async def get_case(self, case_id: str) -> ExceptionCase | None: ...
+    async def get_group(self, group_id: str) -> MatchGroup | None: ...
+    async def add_investigation(self, case_id: str, outcome: InvestigationOutcome) -> None: ...
+    async def investigations(self, case_id: str) -> list[InvestigationOutcome]: ...
+    async def record_decision(self, decision: CaseDecision) -> None: ...
+    async def get_decision(self, case_id: str) -> CaseDecision | None: ...
+    async def all_decisions(self) -> dict[str, CaseDecision]: ...
+    async def add_audit(self, event: AuditEvent) -> None: ...
+    async def audit_for(self, entity_id: str) -> list[AuditEvent]: ...
+    async def create_user(self, *, email: str, hashed_password: str, full_name: str,
                      role: UserRole) -> User: ...
-    def get_user(self, user_id: str) -> User | None: ...
-    def find_user_by_email(self, email: str) -> User | None: ...
-    def list_users(self) -> list[User]: ...
-    def store_refresh(self, *, user_id: str, digest: str, family_id: str,
+    async def get_user(self, user_id: str) -> User | None: ...
+    async def find_user_by_email(self, email: str) -> User | None: ...
+    async def list_users(self) -> list[User]: ...
+    async def store_refresh(self, *, user_id: str, digest: str, family_id: str,
                        expires_at: datetime) -> RefreshToken: ...
-    def find_refresh(self, digest: str) -> RefreshToken | None: ...
-    def consume_refresh(self, token: RefreshToken) -> None: ...
-    def revoke_family(self, family_id: str) -> int: ...
+    async def find_refresh(self, digest: str) -> RefreshToken | None: ...
+    async def consume_refresh(self, token: RefreshToken) -> None: ...
+    async def revoke_family(self, family_id: str) -> int: ...
 
 
 class InMemoryRepository:
@@ -209,7 +209,7 @@ class InMemoryRepository:
 
     # -- imports ---------------------------------------------------------
 
-    def create_import(self, *, dataset: str, filename: str,
+    async def create_import(self, *, dataset: str, filename: str,
                        idempotency_key: str | None, content_sha256: str) -> ImportRecord:
         record = ImportRecord(
             import_id=_new_id("imp"), dataset=dataset, filename=filename,
@@ -219,27 +219,27 @@ class InMemoryRepository:
         self._imports[record.import_id] = record
         return record
 
-    def find_import_by_key(self, key: str) -> ImportRecord | None:
+    async def find_import_by_key(self, key: str) -> ImportRecord | None:
         return next((i for i in self._imports.values() if i.idempotency_key == key), None)
 
-    def find_import_by_hash(self, sha: str) -> ImportRecord | None:
+    async def find_import_by_hash(self, sha: str) -> ImportRecord | None:
         return next(
             (i for i in self._imports.values()
              if i.content_sha256 == sha and i.status is not ImportStatus.FAILED),
             None,
         )
 
-    def get_import(self, import_id: str) -> ImportRecord | None:
+    async def get_import(self, import_id: str) -> ImportRecord | None:
         return self._imports.get(import_id)
 
-    def list_imports(self) -> list[ImportRecord]:
+    async def list_imports(self) -> list[ImportRecord]:
         return sorted(self._imports.values(), key=lambda i: i.created_at, reverse=True)
 
-    def add_transactions(self, import_id: str,
+    async def add_transactions(self, import_id: str,
                           transactions: list[CanonicalTransaction]) -> None:
         self._transactions[import_id] = transactions
 
-    def all_transactions(self) -> list[CanonicalTransaction]:
+    async def all_transactions(self) -> list[CanonicalTransaction]:
         out: list[CanonicalTransaction] = []
         for import_id, txns in self._transactions.items():
             record = self._imports.get(import_id)
@@ -249,24 +249,24 @@ class InMemoryRepository:
 
     # -- runs ------------------------------------------------------------
 
-    def create_run(self, ruleset_version: str) -> RunRecord:
+    async def create_run(self, ruleset_version: str) -> RunRecord:
         record = RunRecord(
             run_id=_new_id("run"), status=RunStatus.QUEUED, ruleset_version=ruleset_version
         )
         self._runs[record.run_id] = record
         return record
 
-    def get_run(self, run_id: str) -> RunRecord | None:
+    async def get_run(self, run_id: str) -> RunRecord | None:
         return self._runs.get(run_id)
 
-    def list_runs(self) -> list[RunRecord]:
+    async def list_runs(self) -> list[RunRecord]:
         return sorted(self._runs.values(), key=lambda r: r.created_at, reverse=True)
 
-    def latest_run(self) -> RunRecord | None:
+    async def latest_run(self) -> RunRecord | None:
         completed = [r for r in self._runs.values() if r.status is RunStatus.COMPLETED]
         return max(completed, key=lambda r: r.created_at, default=None)
 
-    def save_run_result(self, run_id: str, result: RunResult) -> None:
+    async def save_run_result(self, run_id: str, result: RunResult) -> None:
         record = self._runs[run_id]
         record.result = result
         for case in result.cases:
@@ -276,41 +276,41 @@ class InMemoryRepository:
 
     # -- cases -----------------------------------------------------------
 
-    def get_case(self, case_id: str) -> ExceptionCase | None:
+    async def get_case(self, case_id: str) -> ExceptionCase | None:
         return self._cases.get(case_id)
 
-    def get_group(self, group_id: str) -> MatchGroup | None:
+    async def get_group(self, group_id: str) -> MatchGroup | None:
         return self._groups.get(group_id)
 
-    def add_investigation(self, case_id: str, outcome: InvestigationOutcome) -> None:
+    async def add_investigation(self, case_id: str, outcome: InvestigationOutcome) -> None:
         self._investigations[case_id].append(outcome)
 
-    def investigations(self, case_id: str) -> list[InvestigationOutcome]:
+    async def investigations(self, case_id: str) -> list[InvestigationOutcome]:
         return list(self._investigations[case_id])
 
     # -- decisions ---------------------------------------------------------
 
-    def record_decision(self, decision: CaseDecision) -> None:
+    async def record_decision(self, decision: CaseDecision) -> None:
         self._decisions[decision.case_id] = decision
 
-    def get_decision(self, case_id: str) -> CaseDecision | None:
+    async def get_decision(self, case_id: str) -> CaseDecision | None:
         return self._decisions.get(case_id)
 
-    def all_decisions(self) -> dict[str, CaseDecision]:
+    async def all_decisions(self) -> dict[str, CaseDecision]:
         return dict(self._decisions)
 
     # -- audit -----------------------------------------------------------
 
-    def add_audit(self, event: AuditEvent) -> None:
+    async def add_audit(self, event: AuditEvent) -> None:
         # Append-only by construction here; enforced by a trigger in Postgres.
         self._audit[event.entity_id].append(event)
 
-    def audit_for(self, entity_id: str) -> list[AuditEvent]:
+    async def audit_for(self, entity_id: str) -> list[AuditEvent]:
         return list(self._audit[entity_id])
 
     # -- users -----------------------------------------------------------
 
-    def create_user(self, *, email: str, hashed_password: str, full_name: str,
+    async def create_user(self, *, email: str, hashed_password: str, full_name: str,
                      role: UserRole) -> User:
         user = User(
             user_id=_new_id("usr"), email=email.strip().lower(),
@@ -319,19 +319,19 @@ class InMemoryRepository:
         self._users[user.user_id] = user
         return user
 
-    def get_user(self, user_id: str) -> User | None:
+    async def get_user(self, user_id: str) -> User | None:
         return self._users.get(user_id)
 
-    def find_user_by_email(self, email: str) -> User | None:
+    async def find_user_by_email(self, email: str) -> User | None:
         target = email.strip().lower()
         return next((u for u in self._users.values() if u.email == target), None)
 
-    def list_users(self) -> list[User]:
+    async def list_users(self) -> list[User]:
         return sorted(self._users.values(), key=lambda u: u.created_at)
 
     # -- refresh tokens ---------------------------------------------------
 
-    def store_refresh(self, *, user_id: str, digest: str, family_id: str,
+    async def store_refresh(self, *, user_id: str, digest: str, family_id: str,
                        expires_at: datetime) -> RefreshToken:
         token = RefreshToken(
             token_id=_new_id("rft"), user_id=user_id, digest=digest,
@@ -340,13 +340,13 @@ class InMemoryRepository:
         self._refresh[digest] = token
         return token
 
-    def find_refresh(self, digest: str) -> RefreshToken | None:
+    async def find_refresh(self, digest: str) -> RefreshToken | None:
         return self._refresh.get(digest)
 
-    def consume_refresh(self, token: RefreshToken) -> None:
+    async def consume_refresh(self, token: RefreshToken) -> None:
         token.consumed_at = _now()
 
-    def revoke_family(self, family_id: str) -> int:
+    async def revoke_family(self, family_id: str) -> int:
         """Kill every token descended from one login.
 
         Called when a consumed token is presented again, which means
@@ -369,6 +369,12 @@ _repository: Repository = InMemoryRepository()
 
 def get_repository() -> Repository:
     return _repository
+
+
+def set_repository(repository: Repository) -> None:
+    """Install an implementation. Called once, at startup."""
+    global _repository
+    _repository = repository
 
 
 def reset_repository() -> None:

@@ -65,7 +65,7 @@ async def _sign_in(c: AsyncClient, role: str = "controller") -> AsyncClient:
 @pytest.fixture
 async def anonymous():
     reset_repository()
-    seed_demo_users()
+    await seed_demo_users()
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         yield c

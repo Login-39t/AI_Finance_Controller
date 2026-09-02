@@ -41,7 +41,7 @@ MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 
 @router.get("", response_model=list[ImportDTO], summary="List imports")
 async def list_imports() -> list[ImportDTO]:
-    return [import_dto(r) for r in get_repository().list_imports()]
+    return [import_dto(r) for r in await get_repository().list_imports()]
 
 
 @router.get("/datasets", summary="Datasets that can be uploaded")
@@ -62,7 +62,7 @@ async def list_datasets() -> dict:
 
 @router.get("/{import_id}", response_model=ImportDetailDTO, summary="Import detail")
 async def get_import(import_id: str) -> ImportDetailDTO:
-    record = get_repository().get_import(import_id)
+    record = await get_repository().get_import(import_id)
     if record is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such import")
     return import_dto(record, detail=True)
@@ -86,7 +86,7 @@ async def create_import(
         )
 
     if idempotency_key:
-        existing = repo.find_import_by_key(idempotency_key)
+        existing = await repo.find_import_by_key(idempotency_key)
         if existing is not None:
             # A replay returns the original result rather than importing twice.
             return import_dto(existing, detail=True)
@@ -100,11 +100,11 @@ async def create_import(
         )
 
     content_sha = hashlib.sha256(raw).hexdigest()
-    duplicate = repo.find_import_by_hash(content_sha)
+    duplicate = await repo.find_import_by_hash(content_sha)
     if duplicate is not None:
         # Same bytes, different filename. Reported rather than re-imported,
         # because a second copy of a bank statement inflates every total.
-        record = repo.create_import(
+        record = await repo.create_import(
             dataset=dataset, filename=file.filename or "upload.csv",
             idempotency_key=idempotency_key, content_sha256=content_sha,
         )
@@ -115,7 +115,7 @@ async def create_import(
         )
         return import_dto(record, detail=True)
 
-    record = repo.create_import(
+    record = await repo.create_import(
         dataset=dataset, filename=file.filename or "upload.csv",
         idempotency_key=idempotency_key, content_sha256=content_sha,
     )
@@ -158,9 +158,9 @@ async def create_import(
     record.rows_rejected = len(rejections)
     record.rejections = rejections
     record.status = ImportStatus.COMPLETED
-    repo.add_transactions(record.import_id, accepted)
+    await repo.add_transactions(record.import_id, accepted)
 
-    repo.add_audit(new_audit(
+    await repo.add_audit(new_audit(
         entity_type="import", entity_id=record.import_id, action="imported",
         actor_type="user", actor_name=user.full_name, actor_role=user.role.value,
         detail=(

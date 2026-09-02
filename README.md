@@ -98,9 +98,10 @@ Until then `/healthz` returns 200 and `/readyz` returns 503 naming the database 
 | Overview dashboard, reconciliation explorer | **Live; the explorer shows auto-resolved groups, not only failures** |
 | Reports and CSV exports | **Exceptions, matches, audit trail — exact amounts, no float in the path** |
 | Deploy — Dockerfiles, `render.yaml`, `docker-compose.yml` | Written; see [deployment](docs/06-deployment.md) |
+| Postgres `Repository` implementation | Written against the real schema; **reviewed and unexercised** — see below |
 | `db/schema.sql` executed | **Never** — no Postgres reachable from this machine. Verified statically instead (below). |
 
-**355 tests passing**, lint clean.
+**381 tests passing**, lint clean.
 
 ### The critical path, live
 
@@ -128,7 +129,13 @@ Four demo accounts exist locally, one per role (password `ledgergraph-demo-2026`
 
 A stolen refresh token is usable **once**. Replaying a consumed one returns `401 REFRESH_REUSED` and revokes the entire family, so the legitimate successor dies too — everyone re-authenticates, which is the correct response to a token you cannot distinguish from a copy.
 
-Persistence is behind a protocol with an in-memory implementation, so the API runs today without Postgres. That store has no durability, no concurrent writers, and none of the schema's constraints or triggers — it is correct for development and wrong for a deployment, which is why the Postgres implementation is not optional.
+### Persistence: two implementations, one protocol
+
+`PERSISTENCE=memory` (the default) runs the whole API without a database. `PERSISTENCE=postgres` installs `store_postgres.py` instead. The choice is explicit rather than "Postgres if the URL happens to connect": auto-detection would let a blip at boot silently downgrade a deployment to a store that accepts every write and loses it. `config.py` refuses `memory` when `ENVIRONMENT=production`.
+
+The in-memory store has no durability, no concurrent writers, and none of the schema's constraints or triggers. It is correct for development and wrong for a deployment.
+
+**The Postgres implementation has never run against a server**, because none has been reachable. What has been checked without one: every table and column it names exists in `db/schema.sql` (parsed with libpg_query), every statement it builds compiles against the PostgreSQL dialect, and it satisfies the `Repository` protocol with matching signatures — all six of those checks confirmed by mutation. That catches renamed columns and missing methods. It does not catch a wrong join or a constraint violation. Reviewed and unexercised, not working.
 
 ### Held-out evaluation (`make eval`)
 

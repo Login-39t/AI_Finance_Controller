@@ -35,6 +35,14 @@ class Settings(BaseSettings):
     # blocks the event loop and stalls the run-progress poll exactly when
     # the user is watching it.
     database_url: str = "postgresql+asyncpg://ledgergraph:ledgergraph@localhost:5432/ledgergraph"
+    # Which Repository implementation to install at startup.
+    #
+    # Explicit rather than "postgres if DATABASE_URL is reachable".
+    # Auto-detection would mean a database blip at boot silently
+    # downgrades a deployment to a non-durable in-memory store that
+    # accepts every write and loses it - which is far worse than
+    # refusing to start.
+    persistence: Literal["memory", "postgres"] = "memory"
     db_pool_size: int = 5
     db_max_overflow: int = 10
     db_echo: bool = False
@@ -123,6 +131,18 @@ class Settings(BaseSettings):
             v = "postgresql://" + v[len("postgres://"):]
         if v.startswith("postgresql://"):
             v = "postgresql+asyncpg://" + v[len("postgresql://"):]
+        return v
+
+    @field_validator("persistence")
+    @classmethod
+    def _production_needs_a_database(cls, v: str, info) -> str:
+        if info.data.get("environment") == "production" and v != "postgres":
+            raise ValueError(
+                "PERSISTENCE=memory in production. The in-memory store has no "
+                "durability, no concurrent writers, and none of the schema's "
+                "constraints or triggers - it would accept every decision and "
+                "lose them on the next restart. Set PERSISTENCE=postgres."
+            )
         return v
 
     @field_validator("seed_demo_users")

@@ -60,9 +60,9 @@ def _decode_cursor(cursor: str | None) -> int:
         ) from None
 
 
-def _current_run(run_id: str | None):
+async def _current_run(run_id: str | None):
     repo = get_repository()
-    record = repo.get_run(run_id) if run_id else repo.latest_run()
+    record = await repo.get_run(run_id) if run_id else await repo.latest_run()
     if record is None or record.result is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
@@ -88,7 +88,7 @@ async def list_exceptions(
     default that put cheap problems first would waste the scarcest thing
     in the system, which is attention.
     """
-    record = _current_run(run_id)
+    record = await _current_run(run_id)
     policy = Policy()
 
     cases = record.result.cases
@@ -105,7 +105,7 @@ async def list_exceptions(
         _encode_cursor(offset + limit) if offset + limit < len(cases) else None
     )
 
-    decisions = get_repository().all_decisions()
+    decisions = await get_repository().all_decisions()
     return CasePageDTO(
         items=[
             case_dto(c, record.run_id, record.ruleset_version, policy,
@@ -120,19 +120,19 @@ async def list_exceptions(
 @router.get("/{case_id}", response_model=CasePacketDTO, summary="Investigation packet")
 async def get_exception(case_id: str, _: CanRead) -> CasePacketDTO:
     repo = get_repository()
-    case = repo.get_case(case_id)
+    case = await repo.get_case(case_id)
     if case is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such case")
 
-    record = repo.latest_run()
+    record = await repo.latest_run()
     return packet_dto(
         case,
         record.run_id if record else "unknown",
         record.ruleset_version if record else "unknown",
         Policy(),
-        investigations=repo.investigations(case_id),
-        audit=repo.audit_for(case_id),
-        decision=repo.get_decision(case_id),
+        investigations=await repo.investigations(case_id),
+        audit=await repo.audit_for(case_id),
+        decision=await repo.get_decision(case_id),
     )
 
 
@@ -149,7 +149,7 @@ async def request_investigation(case_id: str, user: CanRead) -> AiInvestigationD
     repo = get_repository()
     settings = get_settings()
 
-    case = repo.get_case(case_id)
+    case = await repo.get_case(case_id)
     if case is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such case")
 
@@ -160,7 +160,7 @@ async def request_investigation(case_id: str, user: CanRead) -> AiInvestigationD
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
-    run = repo.latest_run()
+    run = await repo.latest_run()
     packet = build_packet(case, Redactor(seed=run.run_id if run else "run"))
 
     try:
@@ -182,9 +182,9 @@ async def request_investigation(case_id: str, user: CanRead) -> AiInvestigationD
         model_version=settings.ai_model,
         max_retries=settings.ai_max_retries,
     )
-    repo.add_investigation(case_id, outcome)
+    await repo.add_investigation(case_id, outcome)
 
-    repo.add_audit(new_audit(
+    await repo.add_audit(new_audit(
         entity_type="exception_case", entity_id=case_id, action="ai_investigated",
         actor_type="ai", actor_name=settings.ai_model,
         actor_role=user.role.value,
@@ -197,9 +197,9 @@ async def request_investigation(case_id: str, user: CanRead) -> AiInvestigationD
     if outcome.status is not AiValidationStatus.VALID:
         # Not an error: a refused answer is a real, displayable outcome.
         # The UI shows why, and the deterministic evidence is unaffected.
-        return investigation_dto(len(repo.investigations(case_id)), outcome)
+        return investigation_dto(len(await repo.investigations(case_id)), outcome)
 
-    return investigation_dto(len(repo.investigations(case_id)), outcome)
+    return investigation_dto(len(await repo.investigations(case_id)), outcome)
 
 
 # --------------------------------------------------------------------------
@@ -235,11 +235,11 @@ async def decide(case_id: str, body: DecisionRequest, user: CanDecide) -> CasePa
     losing the first verdict would defeat it.
     """
     repo = get_repository()
-    case = repo.get_case(case_id)
+    case = await repo.get_case(case_id)
     if case is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such case")
 
-    existing = repo.get_decision(case_id)
+    existing = await repo.get_decision(case_id)
     if existing is not None:
         raise ApiError(
             "ALREADY_DECIDED",
@@ -284,8 +284,8 @@ async def decide(case_id: str, body: DecisionRequest, user: CanDecide) -> CasePa
         note=body.note.strip(), decided_by=user.user_id,
         decided_by_name=user.full_name, decided_by_role=user.role,
     )
-    repo.record_decision(decision)
-    repo.add_audit(new_audit(
+    await repo.record_decision(decision)
+    await repo.add_audit(new_audit(
         entity_type="exception_case", entity_id=case_id,
         action=body.resolution.value, actor_type="user",
         actor_name=user.full_name, actor_role=user.role.value,
@@ -297,14 +297,14 @@ async def decide(case_id: str, body: DecisionRequest, user: CanDecide) -> CasePa
         ruleset_version=get_settings().ruleset_version,
     ))
 
-    record = repo.latest_run()
+    record = await repo.latest_run()
     return packet_dto(
         case,
         record.run_id if record else "unknown",
         record.ruleset_version if record else "unknown",
         policy,
-        investigations=repo.investigations(case_id),
-        audit=repo.audit_for(case_id),
+        investigations=await repo.investigations(case_id),
+        audit=await repo.audit_for(case_id),
         decision=decision,
     )
 

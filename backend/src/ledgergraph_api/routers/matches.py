@@ -89,9 +89,9 @@ def _decode(cursor: str | None) -> int:
         ) from None
 
 
-def _current_run(run_id: str | None):
+async def _current_run(run_id: str | None):
     repo = get_repository()
-    record = repo.get_run(run_id) if run_id else repo.latest_run()
+    record = await repo.get_run(run_id) if run_id else await repo.latest_run()
     if record is None or record.result is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
@@ -134,7 +134,7 @@ async def list_groups(
     because a tab bar whose numbers change as you page through is worse
     than no tab bar.
     """
-    record = _current_run(run_id)
+    record = await _current_run(run_id)
     groups = list(record.result.groups)
 
     if rule:
@@ -166,7 +166,7 @@ async def list_groups(
             summary="One group, with its evidence and bridge")
 async def get_group(group_id: str, _: CanRead) -> MatchGroupDetailDTO:
     repo = get_repository()
-    group = repo.get_group(group_id)
+    group = await repo.get_group(group_id)
     if group is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such group")
 

@@ -59,7 +59,7 @@ def dataset(tmp_path_factory) -> Path:
 @pytest.fixture
 async def anonymous():
     reset_repository()
-    seed_demo_users()
+    await seed_demo_users()
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         yield c
@@ -193,7 +193,7 @@ async def test_a_wrong_password_and_an_unknown_email_are_indistinguishable(anony
 
 async def test_a_disabled_account_cannot_sign_in(anonymous):
     repo = get_repository()
-    user = repo.find_user_by_email("analyst@ledgergraph.dev")
+    user = await repo.find_user_by_email("analyst@ledgergraph.dev")
     user.is_active = False
 
     response = await anonymous.post("/v1/auth/login", json={

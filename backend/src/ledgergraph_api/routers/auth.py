@@ -86,14 +86,14 @@ def _user_dto(user: User) -> UserDTO:
     )
 
 
-def _issue(response: Response, user: User) -> TokenDTO:
+async def _issue(response: Response, user: User) -> TokenDTO:
     """Mint an access token and plant a fresh refresh cookie."""
     repo = get_repository()
     token, expires_in = mint_access_token(
         user_id=user.user_id, email=user.email, role=user.role.value
     )
     plaintext, digest, family_id = new_refresh_token()
-    repo.store_refresh(
+    await repo.store_refresh(
         user_id=user.user_id, digest=digest, family_id=family_id,
         expires_at=refresh_expiry(),
     )
@@ -123,29 +123,29 @@ async def register(body: RegisterRequest, response: Response) -> TokenDTO:
         raise ApiError(exc.code, str(exc),
                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY) from exc
 
-    if repo.find_user_by_email(str(body.email)) is not None:
+    if await repo.find_user_by_email(str(body.email)) is not None:
         # An honest 409. Hiding it would be enumeration theatre: a
         # registration form has to tell the user the address is taken or
         # it cannot function, and login is where the timing matters.
         raise ApiError("EMAIL_TAKEN", "an account with this email already exists",
                        status_code=status.HTTP_409_CONFLICT)
 
-    user = repo.create_user(
+    user = await repo.create_user(
         email=str(body.email), hashed_password=hash_password(body.password),
         full_name=body.fullName, role=UserRole.ANALYST,
     )
-    repo.add_audit(new_audit(
+    await repo.add_audit(new_audit(
         entity_type="user", entity_id=user.user_id, action="registered",
         actor_type="user", actor_name=user.email, actor_role=user.role.value,
         detail=f"account created with role {user.role.value}",
     ))
-    return _issue(response, user)
+    return await _issue(response, user)
 
 
 @router.post("/login", response_model=TokenDTO, summary="Exchange credentials for tokens")
 async def login(body: LoginRequest, response: Response) -> TokenDTO:
     repo = get_repository()
-    user = repo.find_user_by_email(str(body.email))
+    user = await repo.find_user_by_email(str(body.email))
 
     # Always verify something, so a miss and a wrong password cost the same.
     ok = verify_password(body.password, user.hashed_password if user else _DUMMY_HASH)
@@ -161,7 +161,7 @@ async def login(body: LoginRequest, response: Response) -> TokenDTO:
         user.hashed_password = hash_password(body.password)
 
     user.last_login_at = datetime.now(UTC)
-    return _issue(response, user)
+    return await _issue(response, user)
 
 
 @router.post("/refresh", response_model=TokenDTO, summary="Rotate the refresh token")
@@ -174,7 +174,7 @@ async def refresh(
         raise ApiError("NO_REFRESH_COOKIE", "no refresh token was presented",
                        status_code=status.HTTP_401_UNAUTHORIZED)
 
-    token = repo.find_refresh(digest_refresh_token(lg_refresh))
+    token = await repo.find_refresh(digest_refresh_token(lg_refresh))
     if token is None:
         raise ApiError("REFRESH_INVALID", "refresh token is not recognised",
                        status_code=status.HTTP_401_UNAUTHORIZED)
@@ -183,8 +183,8 @@ async def refresh(
         # Reuse. Either a copy is in circulation or a client replayed;
         # there is no way to tell them apart here, and only one of the two
         # is benign, so the whole family dies and everyone re-authenticates.
-        revoked = repo.revoke_family(token.family_id)
-        repo.add_audit(new_audit(
+        revoked = await repo.revoke_family(token.family_id)
+        await repo.add_audit(new_audit(
             entity_type="user", entity_id=token.user_id,
             action="refresh_reuse_detected", actor_type="system",
             detail=(
@@ -203,12 +203,12 @@ async def refresh(
         raise ApiError("REFRESH_EXPIRED", "refresh token has expired or was revoked",
                        status_code=status.HTTP_401_UNAUTHORIZED)
 
-    user = repo.get_user(token.user_id)
+    user = await repo.get_user(token.user_id)
     if user is None or not user.is_active:
         raise ApiError("ACCOUNT_UNAVAILABLE", "this account can no longer sign in",
                        status_code=status.HTTP_401_UNAUTHORIZED)
 
-    repo.consume_refresh(token)
+    await repo.consume_refresh(token)
 
     # Rotate inside the same family, so reuse of *any* ancestor still
     # takes the whole chain down.
@@ -216,7 +216,7 @@ async def refresh(
         user_id=user.user_id, email=user.email, role=user.role.value
     )
     plaintext, digest, _ = new_refresh_token()
-    repo.store_refresh(
+    await repo.store_refresh(
         user_id=user.user_id, digest=digest, family_id=token.family_id,
         expires_at=refresh_expiry(),
     )
@@ -235,9 +235,9 @@ async def logout(
     """
     repo = get_repository()
     if lg_refresh:
-        token = repo.find_refresh(digest_refresh_token(lg_refresh))
+        token = await repo.find_refresh(digest_refresh_token(lg_refresh))
         if token is not None:
-            repo.revoke_family(token.family_id)
+            await repo.revoke_family(token.family_id)
     response = Response(status_code=status.HTTP_204_NO_CONTENT)
     response.delete_cookie(key="lg_refresh", path="/v1/auth")
     return response
@@ -250,7 +250,7 @@ async def me(user: CurrentUser) -> UserDTO:
 
 @router.get("/users", response_model=list[UserDTO], summary="List users (controller+)")
 async def list_users(_: CanControl) -> list[UserDTO]:
-    return [_user_dto(u) for u in get_repository().list_users()]
+    return [_user_dto(u) for u in await get_repository().list_users()]
 
 
 # --------------------------------------------------------------------------
@@ -268,7 +268,7 @@ DEMO_USERS: tuple[tuple[str, str, UserRole], ...] = (
 )
 
 
-def seed_demo_users() -> int:
+async def seed_demo_users() -> int:
     """Create the four demo accounts if they are absent. Idempotent."""
     settings = get_settings()
     if not settings.seed_demo_users:
@@ -277,9 +277,9 @@ def seed_demo_users() -> int:
     repo = get_repository()
     created = 0
     for email, name, role in DEMO_USERS:
-        if repo.find_user_by_email(email) is not None:
+        if await repo.find_user_by_email(email) is not None:
             continue
-        repo.create_user(
+        await repo.create_user(
             email=email, hashed_password=hash_password(settings.demo_password),
             full_name=name, role=role,
         )

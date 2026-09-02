@@ -52,7 +52,7 @@ def dataset(tmp_path_factory) -> Path:
 @pytest.fixture
 async def client(dataset):
     reset_repository()
-    seed_demo_users()
+    await seed_demo_users()
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         token = (await c.post("/v1/auth/login", json={
@@ -131,7 +131,7 @@ def test_export_formatting_round_trips_for_every_paise_in_a_range():
 
 async def test_overview_requires_a_signed_in_caller(dataset):
     reset_repository()
-    seed_demo_users()
+    await seed_demo_users()
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         assert (await c.get("/v1/reports/overview")).status_code == 401
@@ -188,7 +188,7 @@ async def test_a_run_with_no_data_reports_404_rather_than_zeroes(dataset):
     """Zeroes would read as a clean close. There is a difference between
     "nothing is wrong" and "nothing has been checked"."""
     reset_repository()
-    seed_demo_users()
+    await seed_demo_users()
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         token = (await c.post("/v1/auth/login", json={

@@ -30,12 +30,12 @@ router = APIRouter(
 
 @router.get("", response_model=list[RunDTO], summary="List runs")
 async def list_runs() -> list[RunDTO]:
-    return [run_dto(r) for r in get_repository().list_runs()]
+    return [run_dto(r) for r in await get_repository().list_runs()]
 
 
 @router.get("/latest", response_model=RunDTO, summary="Most recent completed run")
 async def latest_run() -> RunDTO:
-    record = get_repository().latest_run()
+    record = await get_repository().latest_run()
     if record is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no completed run yet")
     return run_dto(record)
@@ -43,7 +43,7 @@ async def latest_run() -> RunDTO:
 
 @router.get("/{run_id}", response_model=RunDTO, summary="Run status and metrics")
 async def get_run(run_id: str) -> RunDTO:
-    record = get_repository().get_run(run_id)
+    record = await get_repository().get_run(run_id)
     if record is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such run")
     return run_dto(record)
@@ -54,7 +54,7 @@ async def get_run(run_id: str) -> RunDTO:
 async def start_run(background: BackgroundTasks, user: CanRead) -> RunDTO:
     repo = get_repository()
 
-    transactions = repo.all_transactions()
+    transactions = await repo.all_transactions()
     if not transactions:
         raise ApiError(
             "NO_DATA",
@@ -62,7 +62,7 @@ async def start_run(background: BackgroundTasks, user: CanRead) -> RunDTO:
             status_code=status.HTTP_409_CONFLICT,
         )
 
-    running = [r for r in repo.list_runs() if r.status is RunStatus.RUNNING]
+    running = [r for r in await repo.list_runs() if r.status is RunStatus.RUNNING]
     if running:
         # The advisory-lock equivalent. Two concurrent runs over the same
         # data would produce two sets of groups claiming the same records.
@@ -73,8 +73,8 @@ async def start_run(background: BackgroundTasks, user: CanRead) -> RunDTO:
             extra={"runId": running[0].run_id},
         )
 
-    record = repo.create_run(RULESET_VERSION)
-    repo.add_audit(new_audit(
+    record = await repo.create_run(RULESET_VERSION)
+    await repo.add_audit(new_audit(
         entity_type="run", entity_id=record.run_id, action="run_started",
         actor_type="user", actor_name=user.full_name, actor_role=user.role.value,
         ruleset_version=RULESET_VERSION,
@@ -84,7 +84,7 @@ async def start_run(background: BackgroundTasks, user: CanRead) -> RunDTO:
     return run_dto(record)
 
 
-def _execute_run(run_id: str) -> None:
+async def _execute_run(run_id: str) -> None:
     """The engine, off the request path.
 
     Failure is recorded on the run rather than raised into a background
@@ -92,7 +92,7 @@ def _execute_run(run_id: str) -> None:
     its stage, not silently stuck at `running`.
     """
     repo = get_repository()
-    record = repo.get_run(run_id)
+    record = await repo.get_run(run_id)
     if record is None:                       # pragma: no cover - created above
         return
 
@@ -103,10 +103,10 @@ def _execute_run(run_id: str) -> None:
 
     try:
         result = execute(
-            repo.all_transactions(), run_id=run_id, policy=Policy(),
+            await repo.all_transactions(), run_id=run_id, policy=Policy(),
             ruleset_version=record.ruleset_version,
         )
-        repo.save_run_result(run_id, result)
+        await repo.save_run_result(run_id, result)
 
         record.status = RunStatus.COMPLETED
         record.current_stage = None
@@ -114,7 +114,7 @@ def _execute_run(run_id: str) -> None:
         record.completed_at = datetime.now(UTC)
 
         summary = result.summary()
-        repo.add_audit(new_audit(
+        await repo.add_audit(new_audit(
             entity_type="run", entity_id=run_id, action="run_completed",
             ruleset_version=record.ruleset_version,
             detail=(
