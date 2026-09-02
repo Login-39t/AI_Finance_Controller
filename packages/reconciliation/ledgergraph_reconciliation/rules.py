@@ -201,8 +201,16 @@ def match_r6_batch_to_bank_scored(
                 f"Candidate {candidate.external_id} scored {score:.2f}"
                 + ("" if candidate is best else " and was not selected")
             ),
-            computed={k: f"{v:.2f}" for k, v in components.items()}
-            | {"bank_txn": candidate.external_id, "date": candidate.business_date.isoformat()},
+            # The score components are keyed `score_*` so the calendar
+            # date cannot collide with the date-*proximity* score. Merging
+            # a raw `date` key over the components silently replaced a
+            # 0-to-1 score with "2026-03-04", which reads as a broken
+            # number in a column of scores and hid the signal entirely.
+            computed={f"score_{k}": f"{v:.2f}" for k, v in components.items()}
+            | {
+                "bank_txn": candidate.external_id,
+                "posted_on": candidate.business_date.isoformat(),
+            },
             passed=candidate is best,
         ))
 

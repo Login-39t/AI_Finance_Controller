@@ -1,0 +1,204 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { SpinnerGapIcon, UploadSimpleIcon } from "@phosphor-icons/react/dist/ssr";
+
+import { apiBaseUrl, type DatasetInfo, type ImportRecord } from "@/lib/api";
+
+/**
+ * Upload one source file.
+ *
+ * The dataset is *declared*, never sniffed from the file's contents. A
+ * mislabelled upload must error rather than parse as the wrong source and
+ * produce confidently wrong canonical records.
+ *
+ * Rejections are rendered in full, grouped by reason. One bad column
+ * usually explains hundreds of rows, and showing the count per code is
+ * what turns "412 rejected" into a fix.
+ */
+export function ImportPanel({ datasets }: { datasets: DatasetInfo[] }) {
+  const router = useRouter();
+  const [dataset, setDataset] = useState(datasets[0]?.dataset ?? "");
+  const [file, setFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<ImportRecord | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const selected = datasets.find((d) => d.dataset === dataset);
+
+  async function upload() {
+    if (!file) return;
+    setBusy(true);
+    setError(null);
+    setResult(null);
+
+    const body = new FormData();
+    body.set("dataset", dataset);
+    body.set("file", file);
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/v1/imports`, {
+        method: "POST",
+        body,
+        // A generated key so a retried request cannot import twice.
+        headers: { "Idempotency-Key": crypto.randomUUID() },
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        setError(payload.detail ?? `upload failed (${response.status})`);
+      } else {
+        setResult(payload as ImportRecord);
+        router.refresh();
+      }
+    } catch {
+      setError(`cannot reach the API at ${apiBaseUrl}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const byCode = new Map<string, number>();
+  for (const r of result?.rejections ?? []) {
+    byCode.set(r.errorCode, (byCode.get(r.errorCode) ?? 0) + 1);
+  }
+
+  return (
+    <section
+      className="border"
+      style={{
+        background: "var(--surface)",
+        borderColor: "var(--line)",
+        borderRadius: "var(--radius)",
+      }}
+    >
+      <header className="border-b px-4 py-2.5" style={{ borderColor: "var(--line)" }}>
+        <h2 className="text-[13px] font-semibold" style={{ color: "var(--ink)" }}>
+          Upload a source file
+        </h2>
+      </header>
+
+      <div className="flex flex-col gap-3 px-4 py-3">
+        <div className="flex flex-col gap-1">
+          <label htmlFor="dataset" className="label">
+            Source type, required
+          </label>
+          <select
+            id="dataset"
+            value={dataset}
+            onChange={(e) => setDataset(e.target.value)}
+            className="w-full border px-2 py-1.5 text-[12.5px]"
+            style={{
+              borderRadius: "var(--radius)",
+              borderColor: "var(--line)",
+              background: "var(--surface)",
+              color: "var(--ink)",
+            }}
+          >
+            {datasets.map((d) => (
+              <option key={d.dataset} value={d.dataset}>
+                {d.dataset}
+              </option>
+            ))}
+          </select>
+          {selected && (
+            <p className="num text-[11px]" style={{ color: "var(--ink-3)" }}>
+              requires: {selected.requiredColumns.join(", ")}
+            </p>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label htmlFor="file" className="label">
+            CSV file
+          </label>
+          <input
+            id="file"
+            type="file"
+            accept=".csv,text/csv"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            className="w-full border px-2 py-1.5 text-[12.5px]"
+            style={{
+              borderRadius: "var(--radius)",
+              borderColor: "var(--line)",
+              background: "var(--surface)",
+              color: "var(--ink)",
+            }}
+          />
+        </div>
+
+        <button
+          type="button"
+          onClick={upload}
+          disabled={!file || busy}
+          className="flex items-center justify-center gap-2 whitespace-nowrap px-3 py-2 text-[12.5px] font-medium transition-colors duration-100 active:translate-y-px"
+          style={{
+            borderRadius: "var(--radius)",
+            background: !file || busy ? "var(--surface-2)" : "var(--ink)",
+            color: !file || busy ? "var(--ink-3)" : "var(--surface)",
+            cursor: !file || busy ? "not-allowed" : "pointer",
+          }}
+        >
+          {busy ? (
+            <SpinnerGapIcon size={13} weight="bold" className="animate-spin" />
+          ) : (
+            <UploadSimpleIcon size={13} weight="bold" />
+          )}
+          {busy ? "Uploading" : "Upload"}
+        </button>
+
+        {error && (
+          <p
+            className="border-l-2 py-1 pl-2.5 text-[12px]"
+            style={{ borderColor: "var(--flag)", color: "var(--ink-2)" }}
+          >
+            {error}
+          </p>
+        )}
+
+        {result && (
+          <div
+            className="border-l-2 py-1.5 pl-2.5"
+            style={{
+              borderColor:
+                result.status === "completed"
+                  ? "var(--ok)"
+                  : result.status === "duplicate"
+                    ? "var(--warn)"
+                    : "var(--flag)",
+            }}
+          >
+            <p className="text-[12.5px] font-medium" style={{ color: "var(--ink)" }}>
+              {result.filename} — {result.status}
+            </p>
+            {result.error ? (
+              <p className="mt-0.5 text-[12px]" style={{ color: "var(--ink-2)" }}>
+                {result.error}
+              </p>
+            ) : (
+              <p className="num mt-0.5 text-[12px]" style={{ color: "var(--ink-2)" }}>
+                {result.rowsAccepted} accepted · {result.rowsRejected} rejected ·{" "}
+                {result.rowsTotal} total
+              </p>
+            )}
+
+            {byCode.size > 0 && (
+              <dl className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                {[...byCode.entries()].map(([code, count]) => (
+                  <div key={code} className="flex items-baseline gap-1.5">
+                    <dt className="num text-[11px]" style={{ color: "var(--flag)" }}>
+                      {code}
+                    </dt>
+                    <dd className="num text-[11.5px]" style={{ color: "var(--ink-2)" }}>
+                      {count}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}

@@ -86,8 +86,8 @@ Until then `/healthz` returns 200 and `/readyz` returns 503 naming the database 
 | `tests/evaluation/` — held-out metrics vs ground truth | **`make eval`** |
 | `packages/ai_investigation/` — packet, redaction, schema, grounding verifier | **Runs; adversarially tested without an API key** |
 | API — imports, runs, exceptions, investigate | **13 endpoints; full flow verified over HTTP** |
+| Frontend wired to the live API | **Fixtures deleted; queue, case detail, imports, runs all live** |
 | Auth + RBAC | Not built |
-| Frontend wired to the API (still reads fixtures) | Not built |
 
 **272 tests passing**, lint clean.
 
