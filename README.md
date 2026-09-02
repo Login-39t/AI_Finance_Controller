@@ -80,7 +80,7 @@ Until then `/healthz` returns 200 and `/readyz` returns 503 naming the database 
 | `packages/domain/` — enums, canonical model, 6 normalisers | **Enums verified against `schema.sql`; all 714 generated rows normalise** |
 | `backend/` — app factory, config, DB session, health, problem+json errors | **Runs on :8000** |
 | `backend/alembic/` — migration 0001 applies `db/schema.sql` | Written, **never executed** (no Postgres yet) |
-| `frontend/` — exceptions queue, case detail | **Builds; verified in light and dark** |
+| `frontend/` — queue, case detail, imports, runs | **On live API data; verified in light and dark** |
 | `data/synthetic/` — generator + 12-type anomaly injector | **Deterministic; every anomaly type verified to fire** |
 | `packages/reconciliation/` — rules R1–R6, bridge, 8 detectors, the gate | **Runs; false-clear rate 0.0000 on holdout** |
 | `tests/evaluation/` — held-out metrics vs ground truth | **`make eval`** |
@@ -114,8 +114,6 @@ Persistence is behind a protocol with an in-memory implementation, so the API ru
 | Anomaly detection | 11 of 11 types at 100% | — |
 
 3,571 transactions in ~10ms. The holdout partition is separated by a hash of the truth id, not by call order, so a rule change cannot move a record between partitions.
-
-The frontend currently reads `frontend/src/fixtures/cases.ts`, not the API. That file is deleted the moment `GET /v1/exceptions` exists.
 
 `data/synthetic/out/` is gitignored — regenerate with `make gen-data`. At the default scale (1200 payments, 30-day lookback): 22 settlement batches, 971 lines, 991 ground-truth links (805 tuning / 186 holdout), and every one of the twelve labeled anomaly types fires at least once — a regression that previously let five types silently produce zero instances is now a named test (`test_every_anomaly_type_fires_at_least_once`).
 
