@@ -83,7 +83,9 @@ CREATE TYPE case_resolution AS ENUM (
 CREATE TYPE decision_action AS ENUM (
     'auto_resolved', 'approved', 'rejected', 'overridden', 'assigned',
     'commented', 'reopened', 'dismissed', 'role_changed', 'policy_changed',
-    'imported', 'run_started', 'run_completed', 'ai_investigated'
+    'imported', 'run_started', 'run_completed', 'ai_investigated',
+    -- Account lifecycle, also recorded in the one audit table.
+    'registered', 'refresh_reuse_detected'
 );
 
 CREATE TYPE actor_type AS ENUM ('user', 'system', 'ai');

@@ -76,8 +76,8 @@ async def start_run(background: BackgroundTasks, user: CanRead) -> RunDTO:
     record = await repo.create_run(RULESET_VERSION)
     await repo.add_audit(new_audit(
         entity_type="run", entity_id=record.run_id, action="run_started",
-        actor_type="user", actor_name=user.full_name, actor_role=user.role.value,
-        ruleset_version=RULESET_VERSION,
+        actor_type="user", actor_id=user.user_id, actor_name=user.full_name,
+        actor_role=user.role.value, ruleset_version=RULESET_VERSION,
         detail=f"run queued over {len(transactions)} records",
     ))
     background.add_task(_execute_run, record.run_id)
@@ -100,6 +100,7 @@ async def _execute_run(run_id: str) -> None:
     record.started_at = datetime.now(UTC)
     record.current_stage = "matching"
     record.progress_pct = 10
+    await repo.save_run(record)
 
     try:
         result = execute(
@@ -112,6 +113,7 @@ async def _execute_run(run_id: str) -> None:
         record.current_stage = None
         record.progress_pct = 100
         record.completed_at = datetime.now(UTC)
+        await repo.save_run(record)
 
         summary = result.summary()
         await repo.add_audit(new_audit(
@@ -128,3 +130,4 @@ async def _execute_run(run_id: str) -> None:
         record.status = RunStatus.FAILED
         record.error = f"{type(exc).__name__}: {exc}"
         record.completed_at = datetime.now(UTC)
+        await repo.save_run(record)

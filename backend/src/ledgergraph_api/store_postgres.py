@@ -133,17 +133,26 @@ class PostgresRepository:
         import_id = uuid.uuid4()
         file_id = uuid.uuid4()
 
+        # The source_system column is the `source_system` enum, whose values
+        # are the five systems - not the finer-grained upload dataset name
+        # (settlement_batches and settlement_lines are both
+        # razorpay_settlements). Map through the normaliser so the value is
+        # a legal enum label; storing the raw dataset name made Postgres
+        # reject it with "invalid input value for enum source_system".
+        from ledgergraph_domain.normalizers import get_normalizer
+        source_system = get_normalizer(dataset).source_system.value
+
         async with self._sessionmaker() as session:
             # The file row first: imports.source_file_id is NOT NULL, so
             # there is no order in which this can be a single insert.
             await session.execute(insert(t.source_files).values(
-                id=file_id, org_id=self._org_id, source_system=dataset,
+                id=file_id, org_id=self._org_id, source_system=source_system,
                 original_filename=filename, byte_size=1,
                 file_sha256=content_sha256, storage_uri=f"import://{import_id}",
             ))
             await session.execute(insert(t.imports).values(
                 id=import_id, org_id=self._org_id, source_file_id=file_id,
-                source_system=dataset, idempotency_key=idempotency_key,
+                source_system=source_system, idempotency_key=idempotency_key,
                 status=ImportStatus.PENDING.value,
                 rows_total=0, rows_accepted=0, rows_rejected=0,
             ))
@@ -190,6 +199,34 @@ class PostgresRepository:
                 _import_select().order_by(t.imports.c.started_at.desc())
             )).all()
         return [await self._import_from_row(r) for r in rows]
+
+    async def save_import(self, record: ImportRecord) -> None:
+        """Write the router's final import state back to the row.
+
+        The router mutates the ImportRecord in place - status, row counts,
+        error - which the in-memory store sees for free because it handed
+        out the live object. Postgres handed out a detached copy, so the
+        run counted zero completed imports (NO_DATA) until this wrote the
+        terminal state back. completed_at is stamped for any terminal
+        status so `all_transactions` sees the import as done.
+        """
+        terminal = record.status in (
+            ImportStatus.COMPLETED, ImportStatus.FAILED, ImportStatus.DUPLICATE
+        )
+        async with self._sessionmaker() as session:
+            await session.execute(
+                update(t.imports)
+                .where(t.imports.c.id == uuid.UUID(record.import_id))
+                .values(
+                    status=record.status.value,
+                    rows_total=record.rows_total,
+                    rows_accepted=record.rows_accepted,
+                    rows_rejected=record.rows_rejected,
+                    error=record.error,
+                    completed_at=record.completed_at or (_now() if terminal else None),
+                )
+            )
+            await session.commit()
 
     async def add_transactions(
         self, import_id: str, transactions: list[CanonicalTransaction]
@@ -340,12 +377,18 @@ class PostgresRepository:
         )
 
     async def _run_from_row(self, row) -> RunRecord:
+        # Attach the computed result from the working set if it is present,
+        # so run_dto can derive metrics and the exception queue can read
+        # `record.result`. Absent after a restart, which reads as "no
+        # completed run" until the run is re-executed - the documented
+        # trade for not rebuilding the object graph from rows here.
         return RunRecord(
             run_id=str(row.id), status=RunStatus(row.status),
             ruleset_version=row.ruleset_version,
             current_stage=row.current_stage, progress_pct=row.progress_pct,
             created_at=row.queued_at, started_at=row.started_at,
             completed_at=row.completed_at, error=row.error,
+            result=self._results.get(str(row.id)),
         )
 
     async def get_run(self, run_id: str) -> RunRecord | None:
@@ -373,6 +416,28 @@ class PostgresRepository:
                 .limit(1)
             )).first()
         return await self._run_from_row(row) if row else None
+
+    async def save_run(self, record: RunRecord) -> None:
+        """Persist a run's status transition (queued -> running -> done).
+
+        The background task mutates a RunRecord in place; the in-memory
+        store sees that for free, Postgres does not, so without this the
+        run row stayed 'queued' forever and `latest_run` found nothing.
+        """
+        async with self._sessionmaker() as session:
+            await session.execute(
+                update(t.reconciliation_runs)
+                .where(t.reconciliation_runs.c.id == uuid.UUID(record.run_id))
+                .values(
+                    status=record.status.value,
+                    current_stage=record.current_stage,
+                    progress_pct=record.progress_pct,
+                    started_at=record.started_at,
+                    completed_at=record.completed_at,
+                    error=record.error,
+                )
+            )
+            await session.commit()
 
     async def save_run_result(self, run_id: str, result: RunResult) -> None:
         """Groups, links, evidence and cases, in one transaction.
@@ -497,6 +562,13 @@ class PostgresRepository:
             ))
 
             await session.commit()
+
+        # Keep the computed result in the working set. get_case/get_group and
+        # the run's own `result` read from here rather than rebuilding the
+        # whole object graph from rows on every request - the durable record
+        # is the rows above; this is what the API serves. Lost on restart,
+        # which for a single free instance is acceptable and documented.
+        self._results[run_id] = result
 
     # -- cases -------------------------------------------------------------
     #
@@ -628,6 +700,13 @@ class PostgresRepository:
     # -- audit -------------------------------------------------------------
 
     async def add_audit(self, event: AuditEvent) -> None:
+        # ck_audit_actor: actor_id must be present exactly when
+        # actor_type='user' and absent otherwise. A 'user' event carries
+        # the acting user's id; a system/ai event carries none.
+        actor_id = (
+            uuid.UUID(event.actor_id)
+            if event.actor_id and _is_uuid(event.actor_id) else None
+        )
         async with self._sessionmaker() as session:
             await session.execute(insert(t.decision_audit_events).values(
                 id=uuid.uuid4(), org_id=self._org_id,
@@ -635,14 +714,13 @@ class PostgresRepository:
                 entity_id=row_id(event.entity_id),
                 action=event.action,
                 actor_type=event.actor_type,
-                # ck_audit_actor: actor_id is present exactly when
-                # actor_type is 'user'. A system or AI actor with an id
-                # would violate the CHECK.
-                actor_id=None,
+                actor_id=actor_id,
                 actor_role=event.actor_role,
                 reason_code=event.reason_code,
                 ruleset_version=event.ruleset_version,
-                payload_json={"detail": event.detail},
+                # actor_name is not a column; it rides in the payload so
+                # audit_for can read the human name back for display.
+                payload_json={"detail": event.detail, "actor_name": event.actor_name},
             ))
             await session.commit()
 

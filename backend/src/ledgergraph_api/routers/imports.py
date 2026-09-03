@@ -113,6 +113,7 @@ async def create_import(
             f"identical content was already imported as {duplicate.import_id} "
             f"({duplicate.filename})"
         )
+        await repo.save_import(record)
         return import_dto(record, detail=True)
 
     record = await repo.create_import(
@@ -130,6 +131,7 @@ async def create_import(
     if reader.fieldnames is None:
         record.status = ImportStatus.FAILED
         record.error = "file has no header row"
+        await repo.save_import(record)
         return import_dto(record, detail=True)
 
     normalizer = get_normalizer(dataset)
@@ -140,6 +142,7 @@ async def create_import(
         # one fact that matters.
         record.status = ImportStatus.FAILED
         record.error = f"missing required column(s): {', '.join(missing)}"
+        await repo.save_import(record)
         return import_dto(record, detail=True)
 
     settings = get_settings()
@@ -159,10 +162,12 @@ async def create_import(
     record.rejections = rejections
     record.status = ImportStatus.COMPLETED
     await repo.add_transactions(record.import_id, accepted)
+    await repo.save_import(record)
 
     await repo.add_audit(new_audit(
         entity_type="import", entity_id=record.import_id, action="imported",
-        actor_type="user", actor_name=user.full_name, actor_role=user.role.value,
+        actor_type="user", actor_id=user.user_id, actor_name=user.full_name,
+        actor_role=user.role.value,
         detail=(
             f"{record.rows_accepted} accepted, {record.rows_rejected} rejected "
             f"from {record.filename}"

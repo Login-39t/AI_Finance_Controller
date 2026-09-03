@@ -142,7 +142,8 @@ async def register(body: RegisterRequest, response: Response) -> TokenDTO:
     )
     await repo.add_audit(new_audit(
         entity_type="user", entity_id=user.user_id, action="registered",
-        actor_type="user", actor_name=user.email, actor_role=user.role.value,
+        actor_type="user", actor_id=user.user_id, actor_name=user.email,
+        actor_role=user.role.value,
         detail=f"account created with role {user.role.value}",
     ))
     return await _issue(response, user)
@@ -296,7 +297,8 @@ async def set_user_role(
     assert updated is not None  # existence was checked above
     await repo.add_audit(new_audit(
         entity_type="user", entity_id=updated.user_id, action="role_changed",
-        actor_type="user", actor_name=actor.email, actor_role=actor.role.value,
+        actor_type="user", actor_id=actor.user_id, actor_name=actor.email,
+        actor_role=actor.role.value,
         detail=(f"role changed from {previous.value} to {body.role.value} "
                 f"by {actor.email}"),
     ))

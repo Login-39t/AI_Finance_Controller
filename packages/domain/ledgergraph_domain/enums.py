@@ -193,6 +193,9 @@ class DecisionAction(StrEnum):
     RUN_STARTED = "run_started"
     RUN_COMPLETED = "run_completed"
     AI_INVESTIGATED = "ai_investigated"
+    # Account lifecycle, recorded in the same audit table.
+    REGISTERED = "registered"
+    REFRESH_REUSE_DETECTED = "refresh_reuse_detected"
 
 
 class ActorType(StrEnum):

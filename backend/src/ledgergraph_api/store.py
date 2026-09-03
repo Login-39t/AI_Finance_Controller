@@ -151,6 +151,10 @@ class AuditEvent:
     reason_code: str | None
     detail: str
     ruleset_version: str | None
+    #: The acting user's id, for a 'user' actor. The schema's ck_audit_actor
+    #: CHECK requires actor_id to be present exactly when actor_type='user'
+    #: and absent otherwise, so a system/ai actor leaves this None.
+    actor_id: str | None = None
     created_at: datetime = field(default_factory=_now)
 
 
@@ -163,6 +167,7 @@ class Repository(Protocol):
     async def find_import_by_hash(self, sha: str) -> ImportRecord | None: ...
     async def get_import(self, import_id: str) -> ImportRecord | None: ...
     async def list_imports(self) -> list[ImportRecord]: ...
+    async def save_import(self, record: ImportRecord) -> None: ...
     async def add_transactions(self, import_id: str,
                           transactions: list[CanonicalTransaction]) -> None: ...
     async def all_transactions(self) -> list[CanonicalTransaction]: ...
@@ -170,6 +175,7 @@ class Repository(Protocol):
     async def get_run(self, run_id: str) -> RunRecord | None: ...
     async def list_runs(self) -> list[RunRecord]: ...
     async def latest_run(self) -> RunRecord | None: ...
+    async def save_run(self, record: RunRecord) -> None: ...
     async def save_run_result(self, run_id: str, result: RunResult) -> None: ...
     async def get_case(self, case_id: str) -> ExceptionCase | None: ...
     async def get_group(self, group_id: str) -> MatchGroup | None: ...
@@ -236,6 +242,11 @@ class InMemoryRepository:
     async def list_imports(self) -> list[ImportRecord]:
         return sorted(self._imports.values(), key=lambda i: i.created_at, reverse=True)
 
+    async def save_import(self, record: ImportRecord) -> None:
+        # Already the stored instance here; explicit for parity with the
+        # Postgres store, where the router's mutations must be written back.
+        self._imports[record.import_id] = record
+
     async def add_transactions(self, import_id: str,
                           transactions: list[CanonicalTransaction]) -> None:
         self._transactions[import_id] = transactions
@@ -266,6 +277,12 @@ class InMemoryRepository:
     async def latest_run(self) -> RunRecord | None:
         completed = [r for r in self._runs.values() if r.status is RunStatus.COMPLETED]
         return max(completed, key=lambda r: r.created_at, default=None)
+
+    async def save_run(self, record: RunRecord) -> None:
+        # Already the stored instance here; explicit for parity with the
+        # Postgres store, where the background task's status transitions
+        # must be written back to the row.
+        self._runs[record.run_id] = record
 
     async def save_run_result(self, run_id: str, result: RunResult) -> None:
         record = self._runs[run_id]
@@ -394,12 +411,12 @@ def reset_repository() -> None:
 def new_audit(
     *, entity_type: str, entity_id: str, action: str, detail: str,
     actor_type: str = "system", actor_name: str | None = None,
-    actor_role: str | None = None, reason_code: str | None = None,
-    ruleset_version: str | None = None,
+    actor_role: str | None = None, actor_id: str | None = None,
+    reason_code: str | None = None, ruleset_version: str | None = None,
 ) -> AuditEvent:
     return AuditEvent(
         event_id=_new_id("aud"), entity_type=entity_type, entity_id=entity_id,
         action=action, actor_type=actor_type, actor_name=actor_name,
-        actor_role=actor_role, reason_code=reason_code, detail=detail,
-        ruleset_version=ruleset_version,
+        actor_role=actor_role, actor_id=actor_id, reason_code=reason_code,
+        detail=detail, ruleset_version=ruleset_version,
     )

@@ -21,6 +21,7 @@ turns every insert into a failed `CREATE TYPE`.
 
 from __future__ import annotations
 
+from ledgergraph_domain import enums
 from sqlalchemy import (
     ARRAY,
     BigInteger,
@@ -40,9 +41,48 @@ from sqlalchemy.dialects.postgresql import ENUM, JSONB, UUID
 metadata = MetaData()
 
 
+#: Schema enum name -> the domain StrEnum that carries its labels. The
+#: labels have to be handed to SQLAlchemy for a read to work at all: an
+#: `ENUM(name=..., create_type=False)` with no members has an empty
+#: allow-list, so its result processor rejects every value it reads back
+#: ("not among the defined enum values … Possible values: None"). The
+#: domain enums are the single source for these labels and are checked
+#: against `db/schema.sql` by `tests/unit/test_enums.py`, so this mapping
+#: cannot silently drift from the database.
+_ENUM_SOURCE: dict[str, type[enums.StrEnum]] = {
+    "actor_type": enums.ActorType,
+    "ai_validation_status": enums.AiValidationStatus,
+    "case_resolution": enums.CaseResolution,
+    "decision_action": enums.DecisionAction,
+    "entity_type": enums.EntityType,
+    "exception_severity": enums.ExceptionSeverity,
+    "exception_status": enums.ExceptionStatus,
+    "exception_type": enums.ExceptionType,
+    "group_status": enums.GroupStatus,
+    "group_type": enums.GroupType,
+    "import_status": enums.ImportStatus,
+    "link_role": enums.LinkRole,
+    "rule_tier": enums.RuleTier,
+    "run_status": enums.RunStatus,
+    "source_system": enums.SourceSystem,
+    "txn_direction": enums.TxnDirection,
+    "txn_status": enums.TxnStatus,
+    "user_role": enums.UserRole,
+}
+
+
 def _enum(name: str) -> ENUM:
-    """A Postgres enum the schema already created."""
-    return ENUM(name=name, create_type=False)
+    """A Postgres enum the schema already created.
+
+    `create_type=False` because `db/schema.sql` owns the type; SQLAlchemy
+    must not try to `CREATE TYPE` it again. The labels are passed as plain
+    strings (not the Python enum class) so a read returns the string the
+    repository expects and re-wraps itself (``UserRole(row["role"])``),
+    while a write still goes through the native enum and Postgres enforces
+    the value.
+    """
+    return ENUM(*(m.value for m in _ENUM_SOURCE[name]),
+                name=name, create_type=False)
 
 
 def _uuid() -> UUID:

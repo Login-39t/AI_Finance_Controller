@@ -291,7 +291,8 @@ async def decide(case_id: str, body: DecisionRequest, user: CanDecide) -> CasePa
     await repo.add_audit(new_audit(
         entity_type="exception_case", entity_id=case_id,
         action=body.resolution.value, actor_type="user",
-        actor_name=user.full_name, actor_role=user.role.value,
+        actor_id=user.user_id, actor_name=user.full_name,
+        actor_role=user.role.value,
         reason_code=body.reasonCode.value if body.reasonCode else None,
         detail=(
             decision.note
