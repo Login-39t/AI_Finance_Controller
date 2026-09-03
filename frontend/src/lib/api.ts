@@ -335,6 +335,43 @@ export const exportPaths = {
 } as const;
 
 // --------------------------------------------------------------------------
+// Users (admin)
+// --------------------------------------------------------------------------
+
+export type UserRole = "analyst" | "reviewer" | "controller" | "admin";
+
+export interface User {
+  id: string;
+  email: string;
+  fullName: string;
+  role: UserRole;
+  isActive: boolean;
+}
+
+export const listUsers = () => request<User[]>("/v1/auth/users");
+
+export interface CreateUserBody {
+  email: string;
+  password: string;
+  fullName: string;
+  role: UserRole;
+}
+
+export const createUser = (body: CreateUserBody) =>
+  request<User>("/v1/auth/users", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+export const updateUserRole = (id: string, role: UserRole) =>
+  request<User>(`/v1/auth/users/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ role }),
+  });
+
+// --------------------------------------------------------------------------
 // Health
 // --------------------------------------------------------------------------
 

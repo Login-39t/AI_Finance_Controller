@@ -70,6 +70,15 @@ class RoleUpdateRequest(BaseModel):
     role: UserRole
 
 
+class AdminCreateUserRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=1)
+    fullName: str = Field(min_length=1, max_length=120)
+    #: An admin picks the role directly - unlike self-registration, which
+    #: never accepts one. The enum bounds it to the four valid roles.
+    role: UserRole
+
+
 class UserDTO(Wire):
     id: str
     email: str
@@ -258,6 +267,43 @@ async def me(user: CurrentUser) -> UserDTO:
 @router.get("/users", response_model=list[UserDTO], summary="List users (controller+)")
 async def list_users(_: CanControl) -> list[UserDTO]:
     return [_user_dto(u) for u in await get_repository().list_users()]
+
+
+@router.post("/users", response_model=UserDTO,
+             status_code=status.HTTP_201_CREATED, summary="Create a user (admin)")
+async def create_user_as_admin(
+    body: AdminCreateUserRequest, actor: CanAdmin
+) -> UserDTO:
+    """Create an account with a chosen role. Admin only.
+
+    Distinct from `/register` on two counts: an admin names the role
+    (self-registration never does), and no session is issued - this mints
+    a user for *someone else*, so it must not plant a refresh cookie that
+    would replace the admin's own session with the new account's.
+    """
+    repo = get_repository()
+
+    try:
+        validate_password(body.password, email=str(body.email))
+    except AuthError as exc:
+        raise ApiError(exc.code, str(exc),
+                       status_code=status.HTTP_422_UNPROCESSABLE_ENTITY) from exc
+
+    if await repo.find_user_by_email(str(body.email)) is not None:
+        raise ApiError("EMAIL_TAKEN", "an account with this email already exists",
+                       status_code=status.HTTP_409_CONFLICT)
+
+    user = await repo.create_user(
+        email=str(body.email), hashed_password=hash_password(body.password),
+        full_name=body.fullName, role=body.role,
+    )
+    await repo.add_audit(new_audit(
+        entity_type="user", entity_id=user.user_id, action="registered",
+        actor_type="user", actor_id=actor.user_id, actor_name=actor.email,
+        actor_role=actor.role.value,
+        detail=f"account created with role {user.role.value} by {actor.email}",
+    ))
+    return _user_dto(user)
 
 
 @router.patch("/users/{user_id}", response_model=UserDTO,

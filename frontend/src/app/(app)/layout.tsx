@@ -22,6 +22,11 @@ const NAV = [
   { href: "/explorer", label: "Explorer" },
 ] as const;
 
+//: Admin-only destinations, appended to the nav when the signed-in user is
+//: an admin. The page and the API both refuse a non-admin regardless; this
+//: only decides whether the link is shown.
+const ADMIN_NAV = [{ href: "/users", label: "Users" }] as const;
+
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   // Read rather than hardcoded. A stale run id in the chrome is worse
   // than none: it silently tells the user their figures came from a run
@@ -36,6 +41,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Middleware guarantees a session before this renders, so a missing
   // user here means the cookie was tampered with rather than absent.
   const user = await currentUser();
+  const navItems = user?.role === "admin" ? [...NAV, ...ADMIN_NAV] : NAV;
 
   return (
     <div className="flex min-h-[100dvh] flex-col">
@@ -59,7 +65,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             responsive one. The nav keeps its space; the run context and
             the user block give theirs up first. */}
         <nav className="flex shrink-0 items-center gap-1">
-          {NAV.map((item) => (
+          {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}

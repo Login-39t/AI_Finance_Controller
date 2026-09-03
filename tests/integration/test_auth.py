@@ -596,3 +596,57 @@ async def test_bootstrap_admin_is_a_noop_when_the_account_is_absent(anonymous, m
         assert await bootstrap_admin() is None
     finally:
         get_settings.cache_clear()
+
+
+# --------------------------------------------------------------------------
+# Admin creates a user with a role (the admin-gated "create account")
+# --------------------------------------------------------------------------
+
+async def test_an_admin_creates_a_user_with_a_chosen_role(anonymous):
+    admin = await _login(anonymous, "admin")
+    response = await anonymous.post("/v1/auth/users", headers=_as(admin), json={
+        "email": "newcontroller@ledgergraph.dev", "password": "a-long-enough-password",
+        "fullName": "New Controller", "role": "controller",
+    })
+    assert response.status_code == 201, response.text
+    assert response.json()["role"] == "controller"
+    # No session was issued for the created user - the admin's session stands.
+    assert "lg_refresh" not in response.cookies
+    assert "accessToken" not in response.json()
+
+    # The created account can sign in and act at its role immediately.
+    token = await _login(anonymous, "admin")  # admin still works
+    assert token
+    login = await anonymous.post("/v1/auth/login", json={
+        "email": "newcontroller@ledgergraph.dev", "password": "a-long-enough-password",
+    })
+    assert login.status_code == 200
+    assert login.json()["user"]["role"] == "controller"
+
+
+async def test_a_non_admin_cannot_create_a_user(anonymous):
+    controller = await _login(anonymous, "controller")
+    response = await anonymous.post("/v1/auth/users", headers=_as(controller), json={
+        "email": "x@ledgergraph.dev", "password": "a-long-enough-password",
+        "fullName": "X", "role": "analyst",
+    })
+    assert response.status_code == 403
+
+
+async def test_creating_a_user_with_a_taken_email_is_409(anonymous):
+    admin = await _login(anonymous, "admin")
+    response = await anonymous.post("/v1/auth/users", headers=_as(admin), json={
+        "email": "analyst@ledgergraph.dev", "password": "a-long-enough-password",
+        "fullName": "Dup", "role": "analyst",
+    })
+    assert response.status_code == 409
+    assert response.json()["code"] == "EMAIL_TAKEN"
+
+
+async def test_creating_a_user_with_a_weak_password_is_refused(anonymous):
+    admin = await _login(anonymous, "admin")
+    response = await anonymous.post("/v1/auth/users", headers=_as(admin), json={
+        "email": "weak@ledgergraph.dev", "password": "short",
+        "fullName": "Weak", "role": "analyst",
+    })
+    assert response.status_code == 422
