@@ -1,4 +1,18 @@
+# Test and lint tooling. The API's own runtime dependencies come from
+# `pip install -e backend` (see the Makefile); this file is everything the
+# test suite needs on top of that.
 pytest>=8.0
 pytest-asyncio>=0.24
 hypothesis>=6.100
 ruff>=0.8
+
+# Integration tests drive the app in-process via httpx's ASGI transport.
+httpx>=0.27
+
+# Schema-verification tests parse db/schema.sql with libpg_query
+# (PostgreSQL's own parser) — tests/unit/test_schema_sql.py, test_tables.py.
+pglast>=6.0
+
+# Only the Bedrock provider unit tests import boto3. Not needed to run the
+# app on Groq/Gemini, but required for the full suite to pass.
+boto3>=1.34
