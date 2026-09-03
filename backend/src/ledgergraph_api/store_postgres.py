@@ -57,6 +57,7 @@ from ledgergraph_domain.canonical import CanonicalTransaction
 from ledgergraph_domain.enums import ImportStatus, RunStatus, UserRole
 from ledgergraph_reconciliation.models import ExceptionCase, MatchGroup, RunResult
 from sqlalchemy import and_, delete, insert, select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from . import tables as t
@@ -145,11 +146,28 @@ class PostgresRepository:
         async with self._sessionmaker() as session:
             # The file row first: imports.source_file_id is NOT NULL, so
             # there is no order in which this can be a single insert.
-            await session.execute(insert(t.source_files).values(
+            #
+            # Upsert on uq_file_sha (org_id, file_sha256): a failed import
+            # (wrong source type, say) already inserted a source_files row
+            # for this content, and find_import_by_hash ignores FAILED
+            # imports - so a plain insert on retry hit the unique
+            # constraint and 500'd. Reuse the existing file row instead,
+            # refreshing the fields the retry corrects, and take back
+            # whichever id ends up there for the import to point at.
+            file_stmt = pg_insert(t.source_files).values(
                 id=file_id, org_id=self._org_id, source_system=source_system,
                 original_filename=filename, byte_size=1,
                 file_sha256=content_sha256, storage_uri=f"import://{import_id}",
-            ))
+            ).on_conflict_do_update(
+                index_elements=["org_id", "file_sha256"],
+                set_={
+                    "source_system": source_system,
+                    "original_filename": filename,
+                    "storage_uri": f"import://{import_id}",
+                },
+            ).returning(t.source_files.c.id)
+            file_id = (await session.execute(file_stmt)).scalar_one()
+
             await session.execute(insert(t.imports).values(
                 id=import_id, org_id=self._org_id, source_file_id=file_id,
                 source_system=source_system, idempotency_key=idempotency_key,
