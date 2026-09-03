@@ -56,7 +56,7 @@ from ledgergraph_ai.client import InvestigationOutcome
 from ledgergraph_domain.canonical import CanonicalTransaction
 from ledgergraph_domain.enums import ImportStatus, RunStatus, UserRole
 from ledgergraph_reconciliation.models import ExceptionCase, MatchGroup, RunResult
-from sqlalchemy import and_, delete, insert, select, update
+from sqlalchemy import and_, delete, insert, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -467,16 +467,30 @@ class PostgresRepository:
         """
         run_uuid = uuid.UUID(run_id)
 
+        # Group and case row ids are derived from the domain ids, so the
+        # same logical group/case has the same primary key in every run
+        # over the same data. Deleting only the current run's rows left a
+        # *second* run colliding on reconciliation_groups_pkey with the
+        # first run's rows - so delete any prior copy by id as well.
+        group_ids = [row_id(g.group_id) for g in result.groups]
+        case_ids = [row_id(c.case_id) for c in result.cases]
+
         async with self._sessionmaker() as session:
-            # Idempotent re-save: a retried run replaces its own output
-            # rather than doubling it. The FK cascades take links,
-            # evidence and case members with the groups.
+            # A re-save replaces its own output and supersedes any earlier
+            # run's copy of these groups/cases. Cases first - they
+            # reference groups - and the FK cascades take links, evidence
+            # and case members with them.
             await session.execute(
-                delete(t.exception_cases).where(t.exception_cases.c.run_id == run_uuid)
+                delete(t.exception_cases).where(or_(
+                    t.exception_cases.c.run_id == run_uuid,
+                    t.exception_cases.c.id.in_(case_ids),
+                ))
             )
             await session.execute(
-                delete(t.reconciliation_groups)
-                .where(t.reconciliation_groups.c.run_id == run_uuid)
+                delete(t.reconciliation_groups).where(or_(
+                    t.reconciliation_groups.c.run_id == run_uuid,
+                    t.reconciliation_groups.c.id.in_(group_ids),
+                ))
             )
 
             for group in result.groups:
