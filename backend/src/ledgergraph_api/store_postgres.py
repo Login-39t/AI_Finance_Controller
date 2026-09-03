@@ -630,26 +630,39 @@ class PostgresRepository:
             await session.execute(insert(t.ai_investigations).values(
                 id=uuid.uuid4(), case_id=row_id(case_id),
                 model_version=outcome.model_version,
-                prompt_version=getattr(outcome, "prompt_version", "investigate@v1"),
+                prompt_version=outcome.prompt_version,
                 packet_hash=outcome.packet_fingerprint,
                 validation_status=outcome.status.value,
-                validation_errors=_jsonable(outcome.errors),
+                validation_errors=list(outcome.errors),
                 classification=(
                     inv.classification.value if inv and inv.classification else None
                 ),
-                hypotheses=_jsonable(inv.hypotheses) if inv else [],
+                # model_dump() per hypothesis, not the pydantic objects
+                # themselves: JSONB cannot serialise a BaseModel, and
+                # Hypothesis holds only strings so a plain dump is JSON-safe.
+                hypotheses=[h.model_dump() for h in inv.hypotheses] if inv else [],
                 recommended_action=inv.recommended_action if inv else None,
                 requires_human_approval=(
                     inv.requires_human_approval if inv else None
                 ),
                 # Advisory only. The gate never reads this column, which is
                 # why it can be stored at all.
-                confidence=round(inv.confidence, 4) if inv and inv.confidence else None,
-                uncertainties=_jsonable(inv.uncertainties) if inv else [],
-                cited_evidence_ids=list(outcome.cited_evidence_ids),
-                latency_ms=outcome.latency_ms,
+                confidence=(
+                    round(inv.confidence, 4)
+                    if inv and inv.confidence is not None else None
+                ),
+                uncertainties=list(inv.uncertainties) if inv else [],
+                # The cited ids come off the investigation, not the outcome
+                # (the outcome has no such field); latency is not tracked, and
+                # the column is nullable.
+                cited_evidence_ids=sorted(inv.cited_evidence_ids()) if inv else [],
+                latency_ms=None,
             ))
             await session.commit()
+
+        # Keep it in the working set so the case re-read shows the
+        # investigation, the same way get_case reads the run's result.
+        self._investigations.setdefault(case_id, []).append(outcome)
 
     async def investigations(self, case_id: str) -> list[InvestigationOutcome]:
         # Returned from the working set for the same reason as get_case:
