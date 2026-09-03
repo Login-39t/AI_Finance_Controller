@@ -467,6 +467,19 @@ export function AiPanel({
           <p className="mt-1 text-[12.5px]" style={{ color: "var(--ink-2)" }}>
             {AI_FAILURE_COPY[investigation.validationStatus]}
           </p>
+          {investigation.validationErrors.length > 0 && (
+            <ul className="mt-2 flex flex-col gap-1">
+              {investigation.validationErrors.map((e, i) => (
+                <li
+                  key={i}
+                  className="num text-[11px] leading-snug"
+                  style={{ color: "var(--ink-3)" }}
+                >
+                  {e}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 
