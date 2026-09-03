@@ -9,6 +9,24 @@ Connects payments, Razorpay settlements, bank statements, invoices, and internal
 
 ---
 
+## Live demo
+
+| | URL |
+|---|---|
+| **App** (Next.js on Vercel) | **https://ai-finance-controller-seven.vercel.app** |
+| API (FastAPI + Postgres on Render) | https://ledgergraph-api.onrender.com — [`/docs`](https://ledgergraph-api.onrender.com/docs) · [`/healthz`](https://ledgergraph-api.onrender.com/healthz) |
+
+Grounded AI investigation (Groq) is enabled, so the **Investigate** button on
+any case makes a live, citation-verified model call.
+
+> **Free-tier notes.** The API sleeps after ~15 minutes idle; the first
+> request wakes it in ~30–50s (open `/healthz` once to warm it up before a
+> demo). A redeploy restarts the process and clears the in-memory run cache,
+> so start one reconciliation afterwards to repopulate the queue — the data
+> stays in Postgres. See [deployment](docs/DEPLOYMENT.md) for the full setup.
+
+---
+
 ## Repository layout
 
 ```text
