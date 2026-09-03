@@ -37,7 +37,7 @@ from ..auth import (
     verify_password,
 )
 from ..config import get_settings
-from ..deps import CanControl, CurrentUser
+from ..deps import CanAdmin, CanControl, CurrentUser
 from ..dto import Wire
 from ..errors import ApiError
 from ..store import User, get_repository, new_audit
@@ -62,6 +62,12 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=1)
+
+
+class RoleUpdateRequest(BaseModel):
+    #: Typed as the enum, so a value outside the four roles is a 422 from
+    #: validation rather than something the endpoint has to police itself.
+    role: UserRole
 
 
 class UserDTO(Wire):
@@ -253,6 +259,50 @@ async def list_users(_: CanControl) -> list[UserDTO]:
     return [_user_dto(u) for u in await get_repository().list_users()]
 
 
+@router.patch("/users/{user_id}", response_model=UserDTO,
+              summary="Change a user's role (admin)")
+async def set_user_role(
+    user_id: str, body: RoleUpdateRequest, actor: CanAdmin
+) -> UserDTO:
+    """Grant or change a user's role. Admin only.
+
+    This is what turns a self-registered analyst into a controller
+    without touching the database. Two guards matter:
+
+    * an admin cannot change *their own* role, because demoting the only
+      admin would lock every account out of user management, with no
+      endpoint left to undo it - a second admin must do that;
+    * an unchanged role is an idempotent no-op that writes no audit event,
+      so re-applying the same role does not litter the trail.
+    """
+    repo = get_repository()
+    target = await repo.get_user(user_id)
+    if target is None:
+        raise ApiError("USER_NOT_FOUND", "no user with that id",
+                       status_code=status.HTTP_404_NOT_FOUND)
+
+    if target.user_id == actor.user_id and body.role is not actor.role:
+        raise ApiError(
+            "CANNOT_CHANGE_OWN_ROLE",
+            "an admin cannot change their own role; ask another admin",
+            status_code=status.HTTP_409_CONFLICT,
+        )
+
+    if target.role is body.role:
+        return _user_dto(target)
+
+    previous = target.role
+    updated = await repo.update_user_role(user_id, body.role)
+    assert updated is not None  # existence was checked above
+    await repo.add_audit(new_audit(
+        entity_type="user", entity_id=updated.user_id, action="role_changed",
+        actor_type="user", actor_name=actor.email, actor_role=actor.role.value,
+        detail=(f"role changed from {previous.value} to {body.role.value} "
+                f"by {actor.email}"),
+    ))
+    return _user_dto(updated)
+
+
 # --------------------------------------------------------------------------
 # Demo accounts
 # --------------------------------------------------------------------------
@@ -285,3 +335,38 @@ async def seed_demo_users() -> int:
         )
         created += 1
     return created
+
+
+async def bootstrap_admin() -> str | None:
+    """Promote the configured account to admin, once, at startup.
+
+    The chicken-and-egg a production deploy would otherwise hit: user
+    management needs an admin, but production seeds none and
+    `/auth/register` only mints analysts. Setting `BOOTSTRAP_ADMIN_EMAIL`
+    to an account that has registered closes it - that account becomes an
+    admin on the next start, and can then grant roles through the API
+    instead of raw SQL.
+
+    Idempotent and safe to leave set: returns the email only when a
+    promotion actually happened, and `None` when the variable is unset,
+    the account has not registered yet, or it is already an admin.
+    """
+    settings = get_settings()
+    email = (settings.bootstrap_admin_email or "").strip().lower()
+    if not email:
+        return None
+
+    repo = get_repository()
+    user = await repo.find_user_by_email(email)
+    if user is None or user.role is UserRole.ADMIN:
+        return None
+
+    previous = user.role
+    await repo.update_user_role(user.user_id, UserRole.ADMIN)
+    await repo.add_audit(new_audit(
+        entity_type="user", entity_id=user.user_id, action="role_changed",
+        actor_type="system",
+        detail=(f"promoted {email} from {previous.value} to admin "
+                "via BOOTSTRAP_ADMIN_EMAIL"),
+    ))
+    return email

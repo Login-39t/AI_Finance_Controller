@@ -721,6 +721,20 @@ class PostgresRepository:
             )).mappings().all()
         return [self._user_from_row(r) for r in rows]
 
+    async def update_user_role(self, user_id: str, role: UserRole) -> User | None:
+        if not _is_uuid(user_id):
+            return None
+        async with self._sessionmaker() as session:
+            await session.execute(
+                update(t.users)
+                .where(t.users.c.id == uuid.UUID(user_id))
+                .values(role=role.value)
+            )
+            await session.commit()
+        # A read after the write, so the caller sees exactly what the row
+        # holds - and None if the id named no one (the UPDATE hit 0 rows).
+        return await self.get_user(user_id)
+
     # -- refresh tokens ----------------------------------------------------
 
     async def store_refresh(
@@ -896,6 +910,11 @@ def statements_for_compilation() -> dict[str, Any]:
         "user_by_id": select(t.users).where(t.users.c.id == run_uuid),
         "user_by_email": select(t.users).where(t.users.c.email == "a@b.dev"),
         "users_listed": select(t.users).order_by(t.users.c.created_at),
+        "update_user_role": (
+            update(t.users)
+            .where(t.users.c.id == run_uuid)
+            .values(role=UserRole.ADMIN.value)
+        ),
         "insert_refresh": insert(t.refresh_tokens),
         "refresh_by_digest": select(t.refresh_tokens).where(
             t.refresh_tokens.c.token_hash == "d"

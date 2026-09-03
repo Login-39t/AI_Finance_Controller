@@ -79,6 +79,15 @@ services:
       - key: SEED_DEMO_USERS
         value: "false"
 
+      # Optional, and the clean way to get a first admin in production.
+      # Production seeds no users and /auth/register only mints analysts,
+      # so without this the first controller/admin needs raw SQL. Register
+      # your account through the sign-in page, set this to that email, and
+      # the next start promotes it to admin - idempotently. Leave blank
+      # otherwise. See docs/DEPLOYMENT.md step 6B.
+      - key: BOOTSTRAP_ADMIN_EMAIL
+        sync: false
+
       # The exact frontend origin. A wildcard is silently ignored by
       # browsers once credentials are involved, and the refresh token is
       # a cookie.

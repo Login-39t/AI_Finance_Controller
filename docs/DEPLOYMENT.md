@@ -246,16 +246,42 @@ Redeploy. You can now sign in with the seeded accounts, password
 
 ### Option B — a true production deployment
 
-Keep `ENVIRONMENT=production` and `SEED_DEMO_USERS=false`. Register your
-own analyst account through the sign-in page, then promote it to `admin`
-directly in the database (there is no admin-bootstrap endpoint yet — see
-[Status](#status-what-is-and-isnt-done)):
+Keep `ENVIRONMENT=production` and `SEED_DEMO_USERS=false`, then bootstrap
+your first admin **without touching the database**:
+
+1. Register your own account through the sign-in page. Self-registration
+   only ever creates an **analyst** — that is deliberate.
+2. Render dashboard → `ledgergraph-api` → **Environment**, set:
+
+   | Variable | Value |
+   |---|---|
+   | `BOOTSTRAP_ADMIN_EMAIL` | the email you just registered, e.g. `you@example.com` |
+
+3. Save → redeploy. On startup the API promotes exactly that account to
+   `admin` and writes an audit event. It is **idempotent** — a
+   re-deploy with the variable still set promotes no one a second time,
+   so it is safe to leave in place.
+4. Sign in. As admin you can now grant roles to anyone else through the
+   API — `PATCH /v1/auth/users/{id}` with `{"role": "controller"}` — so
+   no further promotion needs the database. (An admin cannot change their
+   *own* role, which is what stops the last admin from being demoted by
+   accident; a second admin does that.)
+
+> If the account named in `BOOTSTRAP_ADMIN_EMAIL` hasn't registered yet,
+> the promotion is a no-op and the startup log says nothing was changed —
+> register first, then redeploy.
+
+<details>
+<summary>Raw-SQL fallback (if you'd rather not redeploy)</summary>
+
+The same promotion, done directly, using Render's PostgreSQL **Connect**
+panel (psql or a GUI):
 
 ```sql
 UPDATE users SET role = 'admin' WHERE email = 'you@example.com';
 ```
 
-Use Render's PostgreSQL **Connect** panel (psql or a GUI) to run it.
+</details>
 
 ---
 
@@ -317,6 +343,7 @@ the queue fills with cases you can open, decide, and investigate.
 | `DATABASE_URL` | Render (auto) | Connection string; driver normalised to `+asyncpg` in code |
 | `JWT_SECRET` | `render.yaml` (generated) | Signs access tokens; 256-bit, never in git |
 | `SEED_DEMO_USERS` | `render.yaml` | `false` in production; `true` under staging for the demo accounts |
+| `BOOTSTRAP_ADMIN_EMAIL` | **you** (Step 6B, optional) | Promotes an already-registered account to admin at startup; idempotent |
 | `FRONTEND_ORIGIN` | **you** (Step 4) | Exact Vercel URL, for CORS with credentials |
 | `AI_ENABLED` | **you** (Step 5) | `true` to turn on investigations |
 | `AI_PROVIDER` / `AI_MODEL` | `render.yaml` | `groq` / `openai/gpt-oss-120b` |
@@ -342,4 +369,4 @@ Honest about the edges, so nothing surprises you on stage:
 | AI investigations (Groq) | **Working end-to-end** — verified in the browser |
 | `db/schema.sql` against a real Postgres | Runs for the first time on your Render deploy — see Step 2.3 |
 | Postgres repository under real load | Reviewed; exercised the first time you deploy |
-| Admin-bootstrap endpoint | **Not built.** Production has no way to create the first controller/admin except the SQL in Step 6B. The staging demo path (6A) sidesteps this. |
+| Admin bootstrap | **Built.** `BOOTSTRAP_ADMIN_EMAIL` promotes a registered account to admin at startup (Step 6B), and `PATCH /v1/auth/users/{id}` (admin only) grants roles thereafter — no SQL required. The raw-SQL path remains as a fallback. |

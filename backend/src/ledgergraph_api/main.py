@@ -80,6 +80,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     if seeded:
         log.info("api.demo_users_seeded", count=seeded)
 
+    promoted = await auth.bootstrap_admin()
+    if promoted:
+        log.info("api.admin_bootstrapped", email=promoted)
+
     yield
     await dispose_engine()
     log.info("api.stop")

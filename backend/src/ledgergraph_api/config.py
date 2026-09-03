@@ -59,6 +59,13 @@ class Settings(BaseSettings):
     seed_demo_users: bool = True
     demo_password: str = "ledgergraph-demo-2026"
 
+    # Production seeds no users and self-registration only ever mints an
+    # analyst, so a straight production deploy has no first controller or
+    # admin without raw SQL against the database. Set this to the email of
+    # an already-registered account and it is promoted to admin once, at
+    # startup - idempotent, and safe to leave set. Empty means do nothing.
+    bootstrap_admin_email: str | None = None
+
     # -- CORS -------------------------------------------------------------
     # Exact origin, never a wildcard. Browsers silently ignore a wildcard
     # once credentials are involved, which reads as "auth is broken in

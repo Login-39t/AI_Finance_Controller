@@ -185,6 +185,7 @@ class Repository(Protocol):
     async def get_user(self, user_id: str) -> User | None: ...
     async def find_user_by_email(self, email: str) -> User | None: ...
     async def list_users(self) -> list[User]: ...
+    async def update_user_role(self, user_id: str, role: UserRole) -> User | None: ...
     async def store_refresh(self, *, user_id: str, digest: str, family_id: str,
                        expires_at: datetime) -> RefreshToken: ...
     async def find_refresh(self, digest: str) -> RefreshToken | None: ...
@@ -328,6 +329,13 @@ class InMemoryRepository:
 
     async def list_users(self) -> list[User]:
         return sorted(self._users.values(), key=lambda u: u.created_at)
+
+    async def update_user_role(self, user_id: str, role: UserRole) -> User | None:
+        user = self._users.get(user_id)
+        if user is None:
+            return None
+        user.role = role
+        return user
 
     # -- refresh tokens ---------------------------------------------------
 

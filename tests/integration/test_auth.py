@@ -20,7 +20,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from ledgergraph_api.auth import mint_access_token, read_access_token
 from ledgergraph_api.main import app
-from ledgergraph_api.routers.auth import seed_demo_users
+from ledgergraph_api.routers.auth import bootstrap_admin, seed_demo_users
 from ledgergraph_api.store import get_repository, reset_repository
 from ledgergraph_reconciliation.policy import Policy
 
@@ -487,3 +487,112 @@ async def test_only_a_controller_may_list_users(anonymous):
     response = await anonymous.get("/v1/auth/users", headers=_as(controller))
     assert response.status_code == 200
     assert len(response.json()) == 4
+
+
+# --------------------------------------------------------------------------
+# Granting roles: the only way to create a controller/admin without SQL
+# --------------------------------------------------------------------------
+
+async def _user_id(client: AsyncClient, admin_token: str, email: str) -> str:
+    users = (await client.get("/v1/auth/users", headers=_as(admin_token))).json()
+    return next(u["id"] for u in users if u["email"] == email)
+
+
+async def test_an_admin_can_change_a_users_role(anonymous):
+    """Promotion through the API is what removes the raw-SQL step."""
+    admin = await _login(anonymous, "admin")
+    analyst_id = await _user_id(anonymous, admin, "analyst@ledgergraph.dev")
+
+    response = await anonymous.patch(
+        f"/v1/auth/users/{analyst_id}",
+        json={"role": "controller"}, headers=_as(admin),
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["role"] == "controller"
+
+    # The change is real: the promoted account can now do controller work.
+    events = await get_repository().audit_for(analyst_id)
+    changed = [e for e in events if e.action == "role_changed"]
+    assert len(changed) == 1
+    assert changed[0].actor_name == "admin@ledgergraph.dev"
+    assert "analyst to controller" in changed[0].detail
+
+
+async def test_a_non_admin_cannot_change_roles(anonymous):
+    """A controller may decide cases but not hand out privilege."""
+    controller = await _login(anonymous, "controller")
+    analyst_id = await _user_id(
+        anonymous, await _login(anonymous, "admin"), "analyst@ledgergraph.dev"
+    )
+    response = await anonymous.patch(
+        f"/v1/auth/users/{analyst_id}",
+        json={"role": "admin"}, headers=_as(controller),
+    )
+    assert response.status_code == 403
+
+
+async def test_changing_the_role_of_an_unknown_user_is_404(anonymous):
+    admin = await _login(anonymous, "admin")
+    response = await anonymous.patch(
+        "/v1/auth/users/usr_nobody",
+        json={"role": "controller"}, headers=_as(admin),
+    )
+    assert response.status_code == 404
+
+
+async def test_an_admin_cannot_change_their_own_role(anonymous):
+    """Demoting the only admin would lock user management out for good."""
+    admin = await _login(anonymous, "admin")
+    admin_id = await _user_id(anonymous, admin, "admin@ledgergraph.dev")
+    response = await anonymous.patch(
+        f"/v1/auth/users/{admin_id}",
+        json={"role": "controller"}, headers=_as(admin),
+    )
+    assert response.status_code == 409
+    assert response.json()["code"] == "CANNOT_CHANGE_OWN_ROLE"
+
+
+async def test_a_role_outside_the_four_is_refused(anonymous):
+    admin = await _login(anonymous, "admin")
+    analyst_id = await _user_id(anonymous, admin, "analyst@ledgergraph.dev")
+    response = await anonymous.patch(
+        f"/v1/auth/users/{analyst_id}",
+        json={"role": "superuser"}, headers=_as(admin),
+    )
+    assert response.status_code == 422
+
+
+async def test_bootstrap_admin_promotes_a_registered_account(anonymous, monkeypatch):
+    """The production escape from the chicken-and-egg: an analyst who has
+    registered becomes an admin at startup, without touching the database."""
+    from ledgergraph_api.config import get_settings
+
+    await anonymous.post("/v1/auth/register", json={
+        "email": "founder@ledgergraph.dev", "password": "a-long-enough-password",
+        "fullName": "Founder",
+    })
+
+    monkeypatch.setenv("BOOTSTRAP_ADMIN_EMAIL", "founder@ledgergraph.dev")
+    get_settings.cache_clear()
+    try:
+        assert await bootstrap_admin() == "founder@ledgergraph.dev"
+        # Idempotent: running it again promotes no one.
+        assert await bootstrap_admin() is None
+    finally:
+        get_settings.cache_clear()
+
+    admin = await _login(anonymous, "admin")
+    users = (await anonymous.get("/v1/auth/users", headers=_as(admin))).json()
+    founder = next(u for u in users if u["email"] == "founder@ledgergraph.dev")
+    assert founder["role"] == "admin"
+
+
+async def test_bootstrap_admin_is_a_noop_when_the_account_is_absent(anonymous, monkeypatch):
+    from ledgergraph_api.config import get_settings
+
+    monkeypatch.setenv("BOOTSTRAP_ADMIN_EMAIL", "ghost@ledgergraph.dev")
+    get_settings.cache_clear()
+    try:
+        assert await bootstrap_admin() is None
+    finally:
+        get_settings.cache_clear()

@@ -101,3 +101,9 @@ CanDecide = Annotated[
 CanControl = Annotated[
     User, Depends(require_role(UserRole.CONTROLLER, UserRole.ADMIN))
 ]
+
+#: Only an administrator may manage other users and their roles. Kept
+#: distinct from CanControl because granting a role is a higher privilege
+#: than deciding a case: it is the one action that can create another
+#: admin.
+CanAdmin = Annotated[User, Depends(require_role(UserRole.ADMIN))]
