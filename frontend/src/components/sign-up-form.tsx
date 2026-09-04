@@ -67,7 +67,7 @@ export function SignUpForm() {
         </label>
         <input
           id="name"
-          name="name"
+          name="fullName"
           type="text"
           required
           autoComplete="name"
