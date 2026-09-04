@@ -180,8 +180,7 @@ export default function LandingPage() {
       <section className="relative mx-auto max-w-[1120px] px-5 pb-16 pt-14 sm:px-8 sm:pt-20 lg:pb-24">
         <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
           <Reveal>
-            <SectionEyebrow>Razorpay Hackathon · Track 4</SectionEyebrow>
-            <h1 className="mt-4 max-w-[16ch] text-[clamp(2.2rem,5.5vw,3.6rem)] font-semibold leading-[1.05] tracking-tight"
+            <h1 className="max-w-[16ch] text-[clamp(2.2rem,5.5vw,3.6rem)] font-semibold leading-[1.05] tracking-tight"
               style={{ color: "var(--ink)" }}>
               Reconciliation that{" "}
               <span style={{ color: "var(--flag)" }}>shows its work.</span>

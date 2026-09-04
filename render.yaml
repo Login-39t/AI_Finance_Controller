@@ -94,7 +94,7 @@ services:
       # so without this the first controller/admin needs raw SQL. Register
       # your account through the sign-in page, set this to that email, and
       # the next start promotes it to admin - idempotently. Leave blank
-      # otherwise. See docs/DEPLOYMENT.md step 6B.
+      # otherwise. See docs/06-deployment.md.
       - key: BOOTSTRAP_ADMIN_EMAIL
         sync: false
 

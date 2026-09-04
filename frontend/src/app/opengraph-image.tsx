@@ -123,7 +123,7 @@ export default async function Image() {
               FALSE-CLEAR RATE · HELD-OUT
             </div>
           </div>
-          <div style={{ fontSize: 22, color: C.ink3 }}>Razorpay Hackathon · Track 4</div>
+          <div style={{ fontSize: 22, color: C.ink3 }}>AI Finance Controller</div>
         </div>
       </div>
     ),

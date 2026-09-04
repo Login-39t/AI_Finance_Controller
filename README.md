@@ -23,7 +23,7 @@ any case makes a live, citation-verified model call.
 > request wakes it in ~30–50s (open `/healthz` once to warm it up before a
 > demo). A redeploy restarts the process and clears the in-memory run cache,
 > so start one reconciliation afterwards to repopulate the queue — the data
-> stays in Postgres. See [deployment](docs/DEPLOYMENT.md) for the full setup.
+> stays in Postgres. See [deployment](docs/06-deployment.md) for the full setup.
 
 **Signing in.** *Create an account* on the login page self-registers an
 analyst — enough to import, run a reconciliation, and investigate a case.
