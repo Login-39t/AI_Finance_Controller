@@ -223,6 +223,12 @@ CREATE TABLE imports (
     org_id          UUID          NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     source_file_id  UUID          NOT NULL REFERENCES source_files(id) ON DELETE RESTRICT,
     source_system   source_system NOT NULL,
+    -- The upload dataset the user declared (payments, settlement_batches,
+    -- settlement_lines, ...). Finer-grained than source_system, which
+    -- collapses both settlement datasets to razorpay_settlements, so it is
+    -- kept alongside rather than derived from it - the Imports coverage
+    -- view needs to tell those two apart.
+    dataset         TEXT,
     idempotency_key TEXT,
     status          import_status NOT NULL DEFAULT 'pending',
     rows_total      INTEGER       NOT NULL DEFAULT 0,

@@ -163,6 +163,7 @@ imports = Table(
     Column("org_id", _uuid(), nullable=False),
     Column("source_file_id", _uuid(), nullable=False),
     Column("source_system", _enum("source_system"), nullable=False),
+    Column("dataset", Text),
     Column("idempotency_key", Text),
     Column("status", _enum("import_status"), nullable=False),
     Column("rows_total", Integer, nullable=False),

@@ -170,7 +170,8 @@ class PostgresRepository:
 
             await session.execute(insert(t.imports).values(
                 id=import_id, org_id=self._org_id, source_file_id=file_id,
-                source_system=source_system, idempotency_key=idempotency_key,
+                source_system=source_system, dataset=dataset,
+                idempotency_key=idempotency_key,
                 status=ImportStatus.PENDING.value,
                 rows_total=0, rows_accepted=0, rows_rejected=0,
             ))
@@ -184,7 +185,9 @@ class PostgresRepository:
 
     async def _import_from_row(self, row) -> ImportRecord:
         return ImportRecord(
-            import_id=str(row.id), dataset=str(row.source_system),
+            # The declared dataset when it was recorded (post-0004);
+            # source_system for the older rows that predate the column.
+            import_id=str(row.id), dataset=row.dataset or str(row.source_system),
             filename=row.original_filename, status=ImportStatus(row.status),
             rows_total=row.rows_total, rows_accepted=row.rows_accepted,
             rows_rejected=row.rows_rejected, idempotency_key=row.idempotency_key,
@@ -969,6 +972,7 @@ def _import_select():
     return select(
         t.imports.c.id,
         t.imports.c.source_system,
+        t.imports.c.dataset,
         t.imports.c.idempotency_key,
         t.imports.c.status,
         t.imports.c.rows_total,
