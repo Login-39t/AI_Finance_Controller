@@ -1,4 +1,4 @@
-# LedgerGraph — Database Design
+# TallyProof — Database Design
 
 **Target** PostgreSQL 16 · **Full DDL** [`db/schema.sql`](../db/schema.sql) · **Applied via** Alembic
 

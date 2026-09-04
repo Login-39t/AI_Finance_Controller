@@ -1,4 +1,4 @@
-# LedgerGraph — Product Requirements Document
+# TallyProof — Product Requirements Document
 
 **Version** 1.0 · **Owner** solo build · **Window** 2–4 days · **Context** Razorpay Hackathon, Track 4: AI Finance Controller
 
@@ -381,7 +381,7 @@ Grounded AI investigation with schema validation and citation verification, held
 
 ### 7.4 Definition of done
 
-The MVP is done when, on a held-out partition the tuning never saw, LedgerGraph can:
+The MVP is done when, on a held-out partition the tuning never saw, TallyProof can:
 
 1. ingest all five sources and report exactly what it rejected and why;
 2. reconcile the clean majority with a visible amount bridge and traceable evidence;

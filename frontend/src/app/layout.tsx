@@ -22,7 +22,7 @@ const mono = IBM_Plex_Mono({
 });
 
 const SITE = "https://ai-finance-controller-seven.vercel.app";
-const TAGLINE = "LedgerGraph — reconciliation that shows its work.";
+const TAGLINE = "TallyProof — reconciliation that shows its work.";
 const BLURB =
   "Deterministic matching, grounded AI investigation with citation verification, and a false-clear rate held at zero.";
 
@@ -31,13 +31,13 @@ export const metadata: Metadata = {
   // opengraph-image and twitter-image routes.
   metadataBase: new URL(SITE),
   // The tab keeps the short name; the social card gets the tagline.
-  title: "LedgerGraph",
+  title: "TallyProof",
   description:
     "Reconciliation and exception investigation across payments, settlements, bank, invoices, and ledger.",
   openGraph: {
     title: TAGLINE,
     description: BLURB,
-    siteName: "LedgerGraph",
+    siteName: "TallyProof",
     type: "website",
     url: SITE,
   },

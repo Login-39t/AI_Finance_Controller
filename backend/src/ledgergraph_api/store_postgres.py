@@ -1094,7 +1094,7 @@ async def bootstrap(sessionmaker: async_sessionmaker[AsyncSession]) -> PostgresR
         if org_id is None:
             org_id = uuid.uuid4()
             await session.execute(insert(t.organizations).values(
-                id=org_id, name="LedgerGraph",
+                id=org_id, name="TallyProof",
                 business_timezone="Asia/Kolkata", base_currency="INR",
             ))
 

@@ -79,7 +79,7 @@ function NavBar() {
         <Link href="/" className="flex items-center gap-2">
           <GraphIcon size={19} weight="duotone" style={{ color: "var(--flag)" }} />
           <span className="text-[14px] font-semibold tracking-tight" style={{ color: "var(--ink)" }}>
-            LedgerGraph
+            TallyProof
           </span>
         </Link>
         <nav className="ml-auto flex items-center gap-1 sm:gap-2">
@@ -187,7 +187,7 @@ export default function LandingPage() {
               <span style={{ color: "var(--flag)" }}>shows its work.</span>
             </h1>
             <p className="mt-5 max-w-[52ch] text-[14.5px] leading-relaxed" style={{ color: "var(--ink-2)" }}>
-              LedgerGraph connects payments, settlements, bank statements, invoices and
+              TallyProof connects payments, settlements, bank statements, invoices and
               ledgers — matches them deterministically, explains every discrepancy with
               grounded evidence, and routes only genuine uncertainty to a human.
             </p>
@@ -362,7 +362,7 @@ export default function LandingPage() {
           style={{ color: "var(--ink-3)" }}>
           <div className="flex items-center gap-2">
             <GraphIcon size={15} weight="duotone" style={{ color: "var(--flag)" }} />
-            <span>LedgerGraph — trusted because it can show its work.</span>
+            <span>TallyProof — trusted because it can show its work.</span>
           </div>
           <div className="flex items-center gap-4">
             <a href={GITHUB} target="_blank" rel="noreferrer">GitHub</a>

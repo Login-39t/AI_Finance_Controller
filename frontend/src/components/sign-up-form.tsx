@@ -55,7 +55,7 @@ export function SignUpForm() {
           type="email"
           required
           autoComplete="username"
-          placeholder="analyst@ledgergraph.dev"
+          placeholder="analyst@tallyproof.dev"
           className={FIELD}
           style={fieldStyle()}
         />

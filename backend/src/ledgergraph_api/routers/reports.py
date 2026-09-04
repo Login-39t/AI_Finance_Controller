@@ -212,7 +212,7 @@ def _csv_response(filename: str, header: list[str], rows: list[list[str]],
     # later still says which run produced it. Excel shows it as a first
     # row rather than choking, and `csv.reader` callers skip a `#` line.
     buffer.write(
-        f"# LedgerGraph export · run {run_id} · ruleset {ruleset} · "
+        f"# TallyProof export · run {run_id} · ruleset {ruleset} · "
         f"generated {datetime.now(UTC).isoformat(timespec='seconds')} · "
         f"amounts in INR, decimal\n"
     )

@@ -57,7 +57,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               className="text-[13.5px] font-semibold tracking-tight"
               style={{ color: "var(--ink)" }}
             >
-              LedgerGraph
+              TallyProof
             </span>
           </Link>
         </div>

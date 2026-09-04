@@ -21,7 +21,7 @@ from ledgergraph_api.store import reset_repository
 from data.synthetic.anomalies import inject_anomalies
 from data.synthetic.generator import generate_world, write_world
 
-DEMO_PASSWORD = "ledgergraph-demo-2026"
+DEMO_PASSWORD = "tallyproof-demo-2026"
 
 DATASETS = {
     "payments": "payments.csv",
@@ -49,7 +49,7 @@ async def client(dataset):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         token = (await c.post("/v1/auth/login", json={
-            "email": "analyst@ledgergraph.dev", "password": DEMO_PASSWORD,
+            "email": "analyst@tallyproof.dev", "password": DEMO_PASSWORD,
         })).json()["accessToken"]
         c.headers["Authorization"] = f"Bearer {token}"
 

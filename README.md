@@ -1,4 +1,4 @@
-# LedgerGraph
+# TallyProof
 
 **AI-assisted financial reconciliation and exception investigation.**
 Razorpay Hackathon — Track 4: AI Finance Controller.
@@ -30,7 +30,7 @@ analyst — enough to import, run a reconciliation, and investigate a case.
 Reviewer, controller, and admin are granted by an admin from the **Users**
 page. Where the deploy is seeded (`SEED_DEMO_USERS=true`), one account per
 role is listed on the login page under **Role accounts**, sharing the
-password `ledgergraph-demo-2026`, so each role can be seen from the inside
+password `tallyproof-demo-2026`, so each role can be seen from the inside
 without provisioning anyone.
 
 ---
@@ -38,7 +38,7 @@ without provisioning anyone.
 ## Repository layout
 
 ```text
-ledgergraph/
+tallyproof/
 ├── backend/       FastAPI service      · Python 3.11 · Postgres 16
 ├── frontend/      Next.js 15 dashboard · TypeScript · Tailwind v4
 ├── packages/      Framework-free domain and engine code
@@ -132,7 +132,7 @@ Until then `/healthz` returns 200 and `/readyz` returns 503 naming the database 
 ### The critical path, live
 
 ```
-POST /v1/auth/login            controller@ledgergraph.dev -> access token + refresh cookie
+POST /v1/auth/login            controller@tallyproof.dev -> access token + refresh cookie
 POST /v1/imports          x6   3,571 rows accepted, 0 rejected
 POST /v1/reconciliation-runs   202 queued -> poll -> completed
 GET  /v1/exceptions            143 cases, sorted by money at risk
@@ -142,7 +142,7 @@ POST /v1/exceptions/{id}/decision
 
 ### The RBAC boundary, live
 
-Four demo accounts exist locally, one per role (password `ledgergraph-demo-2026`; the API refuses to create them when `ENVIRONMENT=production`). Every line below is a real response from the running API:
+Four demo accounts exist locally, one per role (password `tallyproof-demo-2026`; the API refuses to create them when `ENVIRONMENT=production`). Every line below is a real response from the running API:
 
 | Caller | Case | Result |
 |---|---|---|
@@ -197,7 +197,7 @@ The in-memory store has no durability, no concurrent writers, and none of the sc
 
 | # | Document | Covers |
 |---|---|---|
-| — | [Project blueprint](LedgerGraph-Track-4-Project-Blueprint.md) | The original problem brief |
+| — | [Project blueprint](TallyProof-Track-4-Project-Blueprint.md) | The original problem brief |
 | 1 | [PRD](docs/01-PRD.md) | Problem · users · features · user stories · requirements · edge cases · MVP scope |
 | 2 | [Tech stack](docs/02-tech-stack.md) | Every layer, with the reasoning and the rejected alternatives |
 | 3 | [Architecture](docs/03-architecture.md) | Structure · flows · auth · data flow · security and performance risks |

@@ -1,6 +1,6 @@
-# Deploying LedgerGraph — Step by Step (Render + Vercel)
+# Deploying TallyProof — Step by Step (Render + Vercel)
 
-A complete, click-by-click guide to putting LedgerGraph online: the API
+A complete, click-by-click guide to putting TallyProof online: the API
 and PostgreSQL on **Render**, the Next.js frontend on **Vercel**. Follow
 it top to bottom the first time — the ordering matters, and one step
 (wiring the two URLs together) cannot be skipped.
@@ -234,12 +234,12 @@ On Render → `ledgergraph-api` → **Environment**:
 | `SEED_DEMO_USERS` | `true` |
 
 Redeploy. You can now sign in with the seeded accounts, password
-`ledgergraph-demo-2026`:
+`tallyproof-demo-2026`:
 
-- `controller@ledgergraph.dev` — decides material cases
-- `admin@ledgergraph.dev` — everything, plus users
-- `reviewer@ledgergraph.dev` — decides below the threshold
-- `analyst@ledgergraph.dev` — reads and investigates
+- `controller@tallyproof.dev` — decides material cases
+- `admin@tallyproof.dev` — everything, plus users
+- `reviewer@tallyproof.dev` — decides below the threshold
+- `analyst@tallyproof.dev` — reads and investigates
 
 > These passwords are public. Use this only for a throwaway demo URL,
 > never for anything holding real data.

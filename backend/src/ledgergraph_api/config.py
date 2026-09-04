@@ -57,7 +57,7 @@ class Settings(BaseSettings):
     # known-password account in production is not a demo convenience,
     # it is an open door.
     seed_demo_users: bool = True
-    demo_password: str = "ledgergraph-demo-2026"
+    demo_password: str = "tallyproof-demo-2026"
 
     # Production seeds no users and self-registration only ever mints an
     # analyst, so a straight production deploy has no first controller or

@@ -1,7 +1,7 @@
 [project]
 name = "ledgergraph-api"
 version = "0.1.0"
-description = "LedgerGraph reconciliation API"
+description = "TallyProof reconciliation API"
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.115",

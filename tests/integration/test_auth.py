@@ -27,7 +27,7 @@ from ledgergraph_reconciliation.policy import Policy
 from data.synthetic.anomalies import inject_anomalies
 from data.synthetic.generator import generate_world, write_world
 
-DEMO_PASSWORD = "ledgergraph-demo-2026"
+DEMO_PASSWORD = "tallyproof-demo-2026"
 
 DATASETS = {
     "payments": "payments.csv",
@@ -69,7 +69,7 @@ async def anonymous():
 async def _login(c: AsyncClient, role: str) -> str:
     response = await c.post(
         "/v1/auth/login",
-        json={"email": f"{role}@ledgergraph.dev", "password": DEMO_PASSWORD},
+        json={"email": f"{role}@tallyproof.dev", "password": DEMO_PASSWORD},
     )
     assert response.status_code == 200, response.text
     return response.json()["accessToken"]
@@ -155,7 +155,7 @@ async def test_an_unsigned_token_is_refused(anonymous):
 async def test_registration_cannot_mint_privilege(anonymous):
     """A role field in the request body must not become a role."""
     response = await anonymous.post("/v1/auth/register", json={
-        "email": "new@ledgergraph.dev", "password": "a-long-enough-password",
+        "email": "new@tallyproof.dev", "password": "a-long-enough-password",
         "fullName": "New Person", "role": "admin",
     })
     assert response.status_code == 201, response.text
@@ -164,7 +164,7 @@ async def test_registration_cannot_mint_privilege(anonymous):
 
 async def test_a_short_password_is_refused(anonymous):
     response = await anonymous.post("/v1/auth/register", json={
-        "email": "short@ledgergraph.dev", "password": "short", "fullName": "S",
+        "email": "short@tallyproof.dev", "password": "short", "fullName": "S",
     })
     assert response.status_code == 422
     assert response.json()["code"] == "WEAK_PASSWORD"
@@ -172,7 +172,7 @@ async def test_a_short_password_is_refused(anonymous):
 
 async def test_a_password_containing_the_email_name_is_refused(anonymous):
     response = await anonymous.post("/v1/auth/register", json={
-        "email": "chitra@ledgergraph.dev", "password": "chitra-chitra-1",
+        "email": "chitra@tallyproof.dev", "password": "chitra-chitra-1",
         "fullName": "C",
     })
     assert response.status_code == 422
@@ -181,10 +181,10 @@ async def test_a_password_containing_the_email_name_is_refused(anonymous):
 async def test_a_wrong_password_and_an_unknown_email_are_indistinguishable(anonymous):
     """Both must produce the same code and the same message."""
     wrong = await anonymous.post("/v1/auth/login", json={
-        "email": "analyst@ledgergraph.dev", "password": "not-the-password",
+        "email": "analyst@tallyproof.dev", "password": "not-the-password",
     })
     unknown = await anonymous.post("/v1/auth/login", json={
-        "email": "nobody@ledgergraph.dev", "password": "not-the-password",
+        "email": "nobody@tallyproof.dev", "password": "not-the-password",
     })
     assert wrong.status_code == unknown.status_code == 401
     assert wrong.json()["detail"] == unknown.json()["detail"]
@@ -193,11 +193,11 @@ async def test_a_wrong_password_and_an_unknown_email_are_indistinguishable(anony
 
 async def test_a_disabled_account_cannot_sign_in(anonymous):
     repo = get_repository()
-    user = await repo.find_user_by_email("analyst@ledgergraph.dev")
+    user = await repo.find_user_by_email("analyst@tallyproof.dev")
     user.is_active = False
 
     response = await anonymous.post("/v1/auth/login", json={
-        "email": "analyst@ledgergraph.dev", "password": DEMO_PASSWORD,
+        "email": "analyst@tallyproof.dev", "password": DEMO_PASSWORD,
     })
     assert response.status_code == 401
 
@@ -264,7 +264,7 @@ async def test_the_refresh_cookie_is_httponly_and_scoped(anonymous):
     """XSS must not be able to read it, and it must not travel to every
     endpoint that happens to be on this origin."""
     response = await anonymous.post("/v1/auth/login", json={
-        "email": "analyst@ledgergraph.dev", "password": DEMO_PASSWORD,
+        "email": "analyst@tallyproof.dev", "password": DEMO_PASSWORD,
     })
     raw = response.headers["set-cookie"].lower()
     assert "httponly" in raw
@@ -501,7 +501,7 @@ async def _user_id(client: AsyncClient, admin_token: str, email: str) -> str:
 async def test_an_admin_can_change_a_users_role(anonymous):
     """Promotion through the API is what removes the raw-SQL step."""
     admin = await _login(anonymous, "admin")
-    analyst_id = await _user_id(anonymous, admin, "analyst@ledgergraph.dev")
+    analyst_id = await _user_id(anonymous, admin, "analyst@tallyproof.dev")
 
     response = await anonymous.patch(
         f"/v1/auth/users/{analyst_id}",
@@ -514,7 +514,7 @@ async def test_an_admin_can_change_a_users_role(anonymous):
     events = await get_repository().audit_for(analyst_id)
     changed = [e for e in events if e.action == "role_changed"]
     assert len(changed) == 1
-    assert changed[0].actor_name == "admin@ledgergraph.dev"
+    assert changed[0].actor_name == "admin@tallyproof.dev"
     assert "analyst to controller" in changed[0].detail
 
 
@@ -522,7 +522,7 @@ async def test_a_non_admin_cannot_change_roles(anonymous):
     """A controller may decide cases but not hand out privilege."""
     controller = await _login(anonymous, "controller")
     analyst_id = await _user_id(
-        anonymous, await _login(anonymous, "admin"), "analyst@ledgergraph.dev"
+        anonymous, await _login(anonymous, "admin"), "analyst@tallyproof.dev"
     )
     response = await anonymous.patch(
         f"/v1/auth/users/{analyst_id}",
@@ -543,7 +543,7 @@ async def test_changing_the_role_of_an_unknown_user_is_404(anonymous):
 async def test_an_admin_cannot_change_their_own_role(anonymous):
     """Demoting the only admin would lock user management out for good."""
     admin = await _login(anonymous, "admin")
-    admin_id = await _user_id(anonymous, admin, "admin@ledgergraph.dev")
+    admin_id = await _user_id(anonymous, admin, "admin@tallyproof.dev")
     response = await anonymous.patch(
         f"/v1/auth/users/{admin_id}",
         json={"role": "controller"}, headers=_as(admin),
@@ -554,7 +554,7 @@ async def test_an_admin_cannot_change_their_own_role(anonymous):
 
 async def test_a_role_outside_the_four_is_refused(anonymous):
     admin = await _login(anonymous, "admin")
-    analyst_id = await _user_id(anonymous, admin, "analyst@ledgergraph.dev")
+    analyst_id = await _user_id(anonymous, admin, "analyst@tallyproof.dev")
     response = await anonymous.patch(
         f"/v1/auth/users/{analyst_id}",
         json={"role": "superuser"}, headers=_as(admin),
@@ -568,14 +568,14 @@ async def test_bootstrap_admin_promotes_a_registered_account(anonymous, monkeypa
     from ledgergraph_api.config import get_settings
 
     await anonymous.post("/v1/auth/register", json={
-        "email": "founder@ledgergraph.dev", "password": "a-long-enough-password",
+        "email": "founder@tallyproof.dev", "password": "a-long-enough-password",
         "fullName": "Founder",
     })
 
-    monkeypatch.setenv("BOOTSTRAP_ADMIN_EMAIL", "founder@ledgergraph.dev")
+    monkeypatch.setenv("BOOTSTRAP_ADMIN_EMAIL", "founder@tallyproof.dev")
     get_settings.cache_clear()
     try:
-        assert await bootstrap_admin() == "founder@ledgergraph.dev"
+        assert await bootstrap_admin() == "founder@tallyproof.dev"
         # Idempotent: running it again promotes no one.
         assert await bootstrap_admin() is None
     finally:
@@ -583,14 +583,14 @@ async def test_bootstrap_admin_promotes_a_registered_account(anonymous, monkeypa
 
     admin = await _login(anonymous, "admin")
     users = (await anonymous.get("/v1/auth/users", headers=_as(admin))).json()
-    founder = next(u for u in users if u["email"] == "founder@ledgergraph.dev")
+    founder = next(u for u in users if u["email"] == "founder@tallyproof.dev")
     assert founder["role"] == "admin"
 
 
 async def test_bootstrap_admin_is_a_noop_when_the_account_is_absent(anonymous, monkeypatch):
     from ledgergraph_api.config import get_settings
 
-    monkeypatch.setenv("BOOTSTRAP_ADMIN_EMAIL", "ghost@ledgergraph.dev")
+    monkeypatch.setenv("BOOTSTRAP_ADMIN_EMAIL", "ghost@tallyproof.dev")
     get_settings.cache_clear()
     try:
         assert await bootstrap_admin() is None
@@ -605,7 +605,7 @@ async def test_bootstrap_admin_is_a_noop_when_the_account_is_absent(anonymous, m
 async def test_an_admin_creates_a_user_with_a_chosen_role(anonymous):
     admin = await _login(anonymous, "admin")
     response = await anonymous.post("/v1/auth/users", headers=_as(admin), json={
-        "email": "newcontroller@ledgergraph.dev", "password": "a-long-enough-password",
+        "email": "newcontroller@tallyproof.dev", "password": "a-long-enough-password",
         "fullName": "New Controller", "role": "controller",
     })
     assert response.status_code == 201, response.text
@@ -618,7 +618,7 @@ async def test_an_admin_creates_a_user_with_a_chosen_role(anonymous):
     token = await _login(anonymous, "admin")  # admin still works
     assert token
     login = await anonymous.post("/v1/auth/login", json={
-        "email": "newcontroller@ledgergraph.dev", "password": "a-long-enough-password",
+        "email": "newcontroller@tallyproof.dev", "password": "a-long-enough-password",
     })
     assert login.status_code == 200
     assert login.json()["user"]["role"] == "controller"
@@ -627,7 +627,7 @@ async def test_an_admin_creates_a_user_with_a_chosen_role(anonymous):
 async def test_a_non_admin_cannot_create_a_user(anonymous):
     controller = await _login(anonymous, "controller")
     response = await anonymous.post("/v1/auth/users", headers=_as(controller), json={
-        "email": "x@ledgergraph.dev", "password": "a-long-enough-password",
+        "email": "x@tallyproof.dev", "password": "a-long-enough-password",
         "fullName": "X", "role": "analyst",
     })
     assert response.status_code == 403
@@ -636,7 +636,7 @@ async def test_a_non_admin_cannot_create_a_user(anonymous):
 async def test_creating_a_user_with_a_taken_email_is_409(anonymous):
     admin = await _login(anonymous, "admin")
     response = await anonymous.post("/v1/auth/users", headers=_as(admin), json={
-        "email": "analyst@ledgergraph.dev", "password": "a-long-enough-password",
+        "email": "analyst@tallyproof.dev", "password": "a-long-enough-password",
         "fullName": "Dup", "role": "analyst",
     })
     assert response.status_code == 409
@@ -646,7 +646,7 @@ async def test_creating_a_user_with_a_taken_email_is_409(anonymous):
 async def test_creating_a_user_with_a_weak_password_is_refused(anonymous):
     admin = await _login(anonymous, "admin")
     response = await anonymous.post("/v1/auth/users", headers=_as(admin), json={
-        "email": "weak@ledgergraph.dev", "password": "short",
+        "email": "weak@tallyproof.dev", "password": "short",
         "fullName": "Weak", "role": "analyst",
     })
     assert response.status_code == 422

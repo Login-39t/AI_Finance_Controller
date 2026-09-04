@@ -1,5 +1,5 @@
 -- =====================================================================
--- LedgerGraph — PostgreSQL 16 schema
+-- TallyProof — PostgreSQL 16 schema
 -- Reference DDL. Applied in the repo via Alembic; runnable as-is for a
 -- scratch database:  psql -d ledgergraph -f db/schema.sql
 --

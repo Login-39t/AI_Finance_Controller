@@ -1,4 +1,4 @@
-# LedgerGraph — Tech Stack
+# TallyProof — Tech Stack
 
 **Input** `docs/01-PRD.md` · **Constraints** solo, 2–4 days, Python/FastAPI backend, full auth, runs locally *and* deployed.
 

@@ -1,11 +1,11 @@
-# LedgerGraph — Track 4: AI Finance Controller
+# TallyProof — Track 4: AI Finance Controller
 
 > **Project blueprint for architecture, implementation, evaluation, and demo**  
 > Built for Razorpay Hackathon — Track 4: AI Finance Controller
 
 ## 1. One-line idea
 
-**LedgerGraph is an AI-assisted financial reconciliation and exception-investigation system that connects payments, Razorpay settlements, bank statements, invoices, and internal ledgers; matches records accurately; explains discrepancies; and safely routes uncertain cases to a finance operator.**
+**TallyProof is an AI-assisted financial reconciliation and exception-investigation system that connects payments, Razorpay settlements, bank statements, invoices, and internal ledgers; matches records accurately; explains discrepancies; and safely routes uncertain cases to a finance operator.**
 
 ## 2. Problem statement
 
@@ -29,9 +29,9 @@ Manual reconciliation is slow, repetitive, difficult to audit, and vulnerable to
 
 Build an AI Finance Controller that can process a large batch of synthetic financial records, reconcile records across multiple sources, investigate mismatches, produce explainable decisions, measure its own quality, and keep genuinely ambiguous cases for human review.
 
-## 3. Why build LedgerGraph
+## 3. Why build TallyProof
 
-LedgerGraph solves a real finance-operations bottleneck:
+TallyProof solves a real finance-operations bottleneck:
 
 - **Faster close:** automatically clears routine transactions and reduces manual spreadsheet work.
 - **Lower financial risk:** identifies missing money, duplicate postings, fee errors, settlement failures, and suspicious patterns early.
@@ -456,7 +456,7 @@ Do not report only “records processed.” Evaluate against ground truth.
 ## 19. Recommended repository structure
 
 ```text
-ledgergraph/
+tallyproof/
   README.md
   docs/
     project-blueprint.md
@@ -488,7 +488,7 @@ ledgergraph/
 
 ## 20. Five-minute demo narrative
 
-1. **Set the context (30 sec):** finance teams reconcile customer payments, settlements, bank credits, invoices, and ledgers manually; LedgerGraph unifies the process.
+1. **Set the context (30 sec):** finance teams reconcile customer payments, settlements, bank credits, invoices, and ledgers manually; TallyProof unifies the process.
 2. **Import data (30 sec):** upload the five source datasets and show validation/normalisation status.
 3. **Run reconciliation (45 sec):** launch a run and show matched totals, exceptions, and accuracy metrics.
 4. **Show a clean auto-resolution (45 sec):** open a high-confidence settlement and show exact IDs plus gross-fee-tax-net arithmetic.
@@ -498,7 +498,7 @@ ledgergraph/
 
 ## 21. Definition of done
 
-LedgerGraph is ready for a strong Track 4 submission when it can:
+TallyProof is ready for a strong Track 4 submission when it can:
 
 - ingest a documented synthetic multi-source dataset;
 - reconcile straightforward records with traceable evidence;
@@ -511,5 +511,5 @@ LedgerGraph is ready for a strong Track 4 submission when it can:
 
 ## 22. Core design principle
 
-**LedgerGraph should be trusted because it can show its work.** Every decision must be reproducible from source records and deterministic financial calculations; AI should make investigations clearer and faster, never less accountable.
+**TallyProof should be trusted because it can show its work.** Every decision must be reproducible from source records and deterministic financial calculations; AI should make investigations clearer and faster, never less accountable.
 

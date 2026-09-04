@@ -21,7 +21,7 @@ export default function RegisterPage() {
             className="text-[15px] font-semibold tracking-tight"
             style={{ color: "var(--ink)" }}
           >
-            LedgerGraph
+            TallyProof
           </span>
         </div>
 

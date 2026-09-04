@@ -263,7 +263,7 @@ def run(out_dir: Path, *, count: int = 1200, seed: int = 42) -> Evaluation:
 def report(evaluation: Evaluation) -> str:
     lines = [
         "=" * 66,
-        "LedgerGraph evaluation",
+        "TallyProof evaluation",
         "=" * 66,
         f"transactions      : {evaluation.transactions}",
         f"groups            : {len(evaluation.result.groups)}",

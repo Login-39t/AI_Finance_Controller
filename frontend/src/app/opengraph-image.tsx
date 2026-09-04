@@ -10,7 +10,7 @@ import { ImageResponse } from "next/og";
  * default face rather than breaking the route.
  */
 
-export const alt = "LedgerGraph — reconciliation that shows its work.";
+export const alt = "TallyProof — reconciliation that shows its work.";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -89,7 +89,7 @@ export default async function Image() {
               background: C.surface,
             }}
           />
-          <div style={{ fontSize: 34, fontWeight: 600, letterSpacing: -0.5 }}>LedgerGraph</div>
+          <div style={{ fontSize: 34, fontWeight: 600, letterSpacing: -0.5 }}>TallyProof</div>
         </div>
 
         {/* headline */}

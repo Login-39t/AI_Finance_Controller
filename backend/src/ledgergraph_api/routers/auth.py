@@ -359,10 +359,10 @@ async def set_user_role(
 #: than described. Seeded only when `seed_demo_users` is on, which
 #: `config.py` refuses outside local and staging.
 DEMO_USERS: tuple[tuple[str, str, UserRole], ...] = (
-    ("analyst@ledgergraph.dev", "Asha Analyst", UserRole.ANALYST),
-    ("reviewer@ledgergraph.dev", "Ravi Reviewer", UserRole.REVIEWER),
-    ("controller@ledgergraph.dev", "Chitra Controller", UserRole.CONTROLLER),
-    ("admin@ledgergraph.dev", "Arun Admin", UserRole.ADMIN),
+    ("analyst@tallyproof.dev", "Asha Analyst", UserRole.ANALYST),
+    ("reviewer@tallyproof.dev", "Ravi Reviewer", UserRole.REVIEWER),
+    ("controller@tallyproof.dev", "Chitra Controller", UserRole.CONTROLLER),
+    ("admin@tallyproof.dev", "Arun Admin", UserRole.ADMIN),
 )
 
 

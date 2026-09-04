@@ -28,7 +28,7 @@ from ledgergraph_api.store import reset_repository
 from data.synthetic.anomalies import inject_anomalies
 from data.synthetic.generator import generate_world, write_world
 
-DEMO_PASSWORD = "ledgergraph-demo-2026"
+DEMO_PASSWORD = "tallyproof-demo-2026"
 
 DATASETS = {
     "payments": "payments.csv",
@@ -56,7 +56,7 @@ async def client(dataset):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         token = (await c.post("/v1/auth/login", json={
-            "email": "controller@ledgergraph.dev", "password": DEMO_PASSWORD,
+            "email": "controller@tallyproof.dev", "password": DEMO_PASSWORD,
         })).json()["accessToken"]
         c.headers["Authorization"] = f"Bearer {token}"
 
@@ -192,7 +192,7 @@ async def test_a_run_with_no_data_reports_404_rather_than_zeroes(dataset):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         token = (await c.post("/v1/auth/login", json={
-            "email": "analyst@ledgergraph.dev", "password": DEMO_PASSWORD,
+            "email": "analyst@tallyproof.dev", "password": DEMO_PASSWORD,
         })).json()["accessToken"]
         response = await c.get("/v1/reports/overview",
                                headers={"Authorization": f"Bearer {token}"})
@@ -322,7 +322,7 @@ async def test_an_analyst_may_export(client):
     """Reading and reporting is the analyst's whole job. Only deciding is
     gated."""
     analyst = (await client.post("/v1/auth/login", json={
-        "email": "analyst@ledgergraph.dev", "password": DEMO_PASSWORD,
+        "email": "analyst@tallyproof.dev", "password": DEMO_PASSWORD,
     })).json()["accessToken"]
 
     response = await client.get(

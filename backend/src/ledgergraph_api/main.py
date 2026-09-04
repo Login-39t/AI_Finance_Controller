@@ -94,7 +94,7 @@ def create_app() -> FastAPI:
     _configure_logging(settings)
 
     app = FastAPI(
-        title="LedgerGraph API",
+        title="TallyProof API",
         version=__version__,
         description=(
             "Reconciliation and exception investigation across payments, settlements, "

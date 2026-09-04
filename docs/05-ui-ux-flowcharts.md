@@ -1,4 +1,4 @@
-# LedgerGraph — UI/UX Flowcharts & Build Map
+# TallyProof — UI/UX Flowcharts & Build Map
 
 **The working document for day 3.** Every screen, every function on it, every state it can be in, and the order to build the files in.
 

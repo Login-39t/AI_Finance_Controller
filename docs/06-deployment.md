@@ -22,7 +22,7 @@ a fallback, and a hosted Postgres is the shortest way to a real one.
 2. Copy the connection string into `.env`:
 
 ```bash
-DATABASE_URL=postgresql://user:pass@ep-xxx.ap-southeast-1.aws.neon.tech/ledgergraph?sslmode=require
+DATABASE_URL=postgresql://user:pass@ep-xxx.ap-southeast-1.aws.neon.tech/tallyproof?sslmode=require
 ```
 
 The driver suffix is optional. `config.py` normalises `postgres://` and
@@ -88,7 +88,7 @@ docker compose up --build
 
 API on `:8000`, frontend on `:3000`, Postgres on `:5432`. The demo
 accounts are seeded (`SEED_DEMO_USERS=true`), password
-`ledgergraph-demo-2026`.
+`tallyproof-demo-2026`.
 
 ---
 
@@ -114,7 +114,7 @@ them:
 
 | Variable | Value |
 |---|---|
-| `FRONTEND_ORIGIN` | The exact Vercel URL, e.g. `https://ledgergraph.vercel.app` |
+| `FRONTEND_ORIGIN` | The exact Vercel URL, e.g. `https://tallyproof.vercel.app` |
 | `AI_API_KEY` | Only if you set `AI_ENABLED=true` |
 
 `FRONTEND_ORIGIN` must be exact. CORS uses it with `allow_credentials`,

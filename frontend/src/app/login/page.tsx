@@ -17,10 +17,10 @@ import { SignInForm } from "@/components/sign-in-form";
  */
 
 const DEMO_ROLES = [
-  { email: "analyst@ledgergraph.dev", can: "reads and investigates" },
-  { email: "reviewer@ledgergraph.dev", can: "decides below the threshold" },
-  { email: "controller@ledgergraph.dev", can: "decides material cases" },
-  { email: "admin@ledgergraph.dev", can: "everything, plus users" },
+  { email: "analyst@tallyproof.dev", can: "reads and investigates" },
+  { email: "reviewer@tallyproof.dev", can: "decides below the threshold" },
+  { email: "controller@tallyproof.dev", can: "decides material cases" },
+  { email: "admin@tallyproof.dev", can: "everything, plus users" },
 ] as const;
 
 export default function LoginPage() {
@@ -33,7 +33,7 @@ export default function LoginPage() {
             className="text-[15px] font-semibold tracking-tight"
             style={{ color: "var(--ink)" }}
           >
-            LedgerGraph
+            TallyProof
           </span>
         </div>
 
@@ -78,7 +78,7 @@ export default function LoginPage() {
               style={{ color: "var(--ink-3)" }}
               title="Shared password for every role account"
             >
-              ledgergraph-demo-2026
+              tallyproof-demo-2026
             </span>
           </header>
           <ul>

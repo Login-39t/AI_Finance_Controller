@@ -48,7 +48,7 @@ def _problem(
     **extra: Any,
 ) -> JSONResponse:
     body: dict[str, Any] = {
-        "type": f"https://ledgergraph.dev/errors/{code.lower()}",
+        "type": f"https://tallyproof.dev/errors/{code.lower()}",
         "title": title,
         "status": status_code,
         "code": code,

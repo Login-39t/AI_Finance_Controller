@@ -92,7 +92,7 @@ async def test_openapi_is_served(client):
     r = await client.get("/openapi.json")
     assert r.status_code == 200
     spec = r.json()
-    assert spec["info"]["title"] == "LedgerGraph API"
+    assert spec["info"]["title"] == "TallyProof API"
     assert "/healthz" in spec["paths"]
 
 

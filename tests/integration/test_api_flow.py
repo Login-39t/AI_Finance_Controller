@@ -24,7 +24,7 @@ from ledgergraph_api.store import reset_repository
 from data.synthetic.anomalies import inject_anomalies
 from data.synthetic.generator import generate_world, write_world
 
-DEMO_PASSWORD = "ledgergraph-demo-2026"
+DEMO_PASSWORD = "tallyproof-demo-2026"
 
 DATASETS = {
     "payments": "payments.csv",
@@ -55,7 +55,7 @@ async def _sign_in(c: AsyncClient, role: str = "controller") -> AsyncClient:
     """
     response = await c.post(
         "/v1/auth/login",
-        json={"email": f"{role}@ledgergraph.dev", "password": DEMO_PASSWORD},
+        json={"email": f"{role}@tallyproof.dev", "password": DEMO_PASSWORD},
     )
     assert response.status_code == 200, response.text
     c.headers["Authorization"] = f"Bearer {response.json()['accessToken']}"

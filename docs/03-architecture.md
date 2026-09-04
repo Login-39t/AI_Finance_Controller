@@ -1,4 +1,4 @@
-# LedgerGraph — Application Architecture
+# TallyProof — Application Architecture
 
 **Inputs** `01-PRD.md`, `02-tech-stack.md` · **No code yet.** This document fixes structure, flow, and risk so that day 1 is typing rather than deciding.
 
@@ -21,7 +21,7 @@ Five rules that decide every ambiguous call below.
 Adapted from blueprint §19, collapsed to what one person can maintain in four days. A `packages/` layer is kept — not for ceremony, but because the matching rules must be importable by the eval harness without booting the API.
 
 ```text
-ledgergraph/
+tallyproof/
 ├── README.md
 ├── Makefile                        # up, seed, gen-data, test, eval, migrate, typegen
 ├── docker-compose.yml
