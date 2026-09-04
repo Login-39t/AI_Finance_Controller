@@ -1,8 +1,4 @@
-import Link from "next/link";
-import { GraphIcon } from "@phosphor-icons/react/dist/ssr";
-
-import { UserMenu } from "@/components/user-menu";
-import { AppNav } from "@/components/app-nav";
+import { AppHeader } from "@/components/app-header";
 import { latestRun } from "@/lib/api";
 import { currentUser } from "@/lib/session";
 
@@ -12,7 +8,8 @@ import { currentUser } from "@/lib/session";
  * A reconciliation console gives its vertical space to rows, not chrome.
  * The run context sits in the bar because every number on every screen
  * below is scoped to a run, and a user who forgets which run they are
- * looking at will misread every figure on the page.
+ * looking at will misread every figure on the page. The bar itself is
+ * pinned to the top and reacts to scroll - see AppHeader.
  */
 
 const NAV = [
@@ -46,45 +43,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex min-h-[100dvh] flex-col">
-      <header
-        className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between gap-4 border-b px-4 sm:gap-6 backdrop-blur-md"
-        style={{ background: "var(--surface)", borderColor: "var(--line)" }}
-      >
-        <div className="flex flex-1 items-center justify-start">
-          <Link href="/overview" className="flex shrink-0 items-center gap-2 whitespace-nowrap">
-            <GraphIcon size={17} weight="duotone" style={{ color: "var(--flag)" }} />
-            <span
-              className="text-[13.5px] font-semibold tracking-tight"
-              style={{ color: "var(--ink)" }}
-            >
-              TallyProof
-            </span>
-          </Link>
-        </div>
-
-        <AppNav items={navItems} />
-
-        <div className="flex flex-1 min-w-0 items-center justify-end gap-4 whitespace-nowrap">
-          {run && (
-            <>
-              <span className="label hidden lg:inline">Run</span>
-              <span
-                className="num hidden truncate text-[12px] lg:inline"
-                style={{ color: "var(--ink-2)" }}
-                title={run.id}
-              >
-                {run.id}
-              </span>
-              <span
-                className="hidden h-6 w-px lg:inline-block"
-                style={{ background: "var(--line)" }}
-                aria-hidden
-              />
-            </>
-          )}
-          {user && <UserMenu name={user.fullName} role={user.role} />}
-        </div>
-      </header>
+      <AppHeader
+        navItems={navItems}
+        runId={run?.id ?? null}
+        user={user ? { fullName: user.fullName, role: user.role } : null}
+      />
 
       {/* min-w-0 is load-bearing. Without it a flex child is sized by its
           widest content, so the 980px-wide queue table pushed the whole
