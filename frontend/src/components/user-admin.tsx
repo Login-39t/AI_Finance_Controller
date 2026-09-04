@@ -10,6 +10,7 @@ import {
   changeRoleAction,
   createUserAction,
 } from "@/lib/user-actions";
+import { Select } from "@/components/select";
 
 const ROLES: UserRole[] = ["analyst", "reviewer", "controller", "admin"];
 const ROLE_NOTE: Record<UserRole, string> = {
@@ -84,11 +85,15 @@ function CreateUserForm() {
       </div>
       <div className="flex flex-col gap-1">
         <label htmlFor="role" className="label">Role</label>
-        <select id="role" name="role" defaultValue="analyst" className={FIELD} style={fieldStyle()}>
-          {ROLES.map((r) => (
-            <option key={r} value={r}>{r} — {ROLE_NOTE[r]}</option>
-          ))}
-        </select>
+        <Select
+          id="role"
+          name="role"
+          defaultValue="analyst"
+          options={ROLES.map((r) => ({
+            value: r,
+            label: `${r} — ${ROLE_NOTE[r]}`,
+          }))}
+        />
       </div>
       <Submit label="Create user" pendingLabel="Creating…" />
       {state.message && (
@@ -105,21 +110,15 @@ function RoleForm({ user, isSelf }: { user: User; isSelf: boolean }) {
   return (
     <form action={action} className="flex items-center gap-2">
       <input type="hidden" name="userId" value={user.id} />
-      <select
-        name="role"
-        defaultValue={user.role}
-        disabled={isSelf}
-        className="border px-2 py-1 text-[12px] outline-none"
-        style={{
-          ...fieldStyle(),
-          opacity: isSelf ? 0.5 : 1,
-          cursor: isSelf ? "not-allowed" : "pointer",
-        }}
-      >
-        {ROLES.map((r) => (
-          <option key={r} value={r}>{r}</option>
-        ))}
-      </select>
+      <div className="w-[110px]">
+        <Select
+          name="role"
+          defaultValue={user.role}
+          disabled={isSelf}
+          size="sm"
+          options={ROLES.map((r) => ({ value: r, label: r }))}
+        />
+      </div>
       {!isSelf && (
         <button
           type="submit"

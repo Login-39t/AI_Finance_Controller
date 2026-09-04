@@ -8,6 +8,7 @@ import { SpinnerGapIcon, UploadSimpleIcon } from "@phosphor-icons/react/dist/ssr
 // next/headers into this client bundle and fail the build.
 import type { DatasetInfo, ImportRecord } from "@/lib/api";
 import { uploadImport } from "@/lib/work-actions";
+import { Select } from "@/components/select";
 
 /**
  * Upload one source file.
@@ -79,25 +80,16 @@ export function ImportPanel({ datasets }: { datasets: DatasetInfo[] }) {
           <label htmlFor="dataset" className="label">
             Source type, required
           </label>
-          <select
+          <Select
             id="dataset"
+            name="dataset"
             value={dataset}
-            onChange={(e) => setDataset(e.target.value)}
-            className="w-full border px-3 py-2 text-[12.5px] cursor-pointer"
-            style={{
-              borderRadius: "var(--radius)",
-              borderColor: "var(--line)",
-              background: "var(--surface-2)",
-              color: "var(--ink)",
-              backdropFilter: "blur(12px)",
-            }}
-          >
-            {datasets.map((d) => (
-              <option key={d.dataset} value={d.dataset} style={{ background: "#0f121a", color: "var(--ink)" }}>
-                {d.dataset}
-              </option>
-            ))}
-          </select>
+            onChange={(val) => setDataset(val)}
+            options={datasets.map((d) => ({
+              value: d.dataset,
+              label: d.dataset,
+            }))}
+          />
           {selected && (
             <p className="num text-[11px]" style={{ color: "var(--ink-3)" }}>
               requires: {selected.requiredColumns.join(", ")}

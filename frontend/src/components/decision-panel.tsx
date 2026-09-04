@@ -11,6 +11,7 @@ import {
 import { submitDecision, type DecisionState } from "@/lib/case-actions";
 import { formatMinor } from "@/lib/money";
 import { REASON_CODES, type CaseResolution, type Role } from "@/lib/types";
+import { Select } from "@/components/select";
 
 type Action = "approve" | "reject" | "override" | "dismiss";
 
@@ -184,27 +185,17 @@ export function DecisionPanel({
             <label htmlFor="reason" className="label">
               Reason code, required
             </label>
-            <select
+            <Select
               id="reason"
               name="reasonCode"
               value={reasonCode}
-              onChange={(e) => setReasonCode(e.target.value)}
-              className="w-full border px-3 py-2 text-[12.5px] cursor-pointer"
-              style={{
-                borderRadius: "var(--radius)",
-                borderColor: "var(--line)",
-                background: "var(--surface-2)",
-                color: "var(--ink)",
-                backdropFilter: "blur(12px)",
-              }}
-            >
-              <option value="" style={{ background: "#0f121a", color: "var(--ink)" }}>Select a reason</option>
-              {REASON_CODES.map((r) => (
-                <option key={r.code} value={r.code} style={{ background: "#0f121a", color: "var(--ink)" }}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
+              onChange={(val) => setReasonCode(val)}
+              placeholder="Select a reason"
+              options={REASON_CODES.map((r) => ({
+                value: r.code,
+                label: r.label,
+              }))}
+            />
           </div>
         )}
 
