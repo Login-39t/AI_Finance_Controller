@@ -60,6 +60,50 @@ export async function signIn(
   redirect("/exceptions");
 }
 
+export async function signUp(
+  _prev: { error: string | null },
+  form: FormData,
+): Promise<{ error: string | null }> {
+  const fullName = String(form.get("fullName") ?? "").trim();
+  const email = String(form.get("email") ?? "").trim();
+  const password = String(form.get("password") ?? "");
+
+  if (!fullName || !email || !password) {
+    return { error: "Enter your name, an email and a password." };
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${apiBaseUrl}/v1/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fullName, email, password }),
+      cache: "no-store",
+    });
+  } catch {
+    return { error: `Cannot reach the API at ${apiBaseUrl}. Is it running?` };
+  }
+
+  if (!response.ok) {
+    // The API's own message is the useful one here - "email already
+    // exists", "password must be at least 10 characters", and so on.
+    let detail = "Could not create the account.";
+    try {
+      detail = (await response.json()).detail ?? detail;
+    } catch {
+      /* a non-JSON error body is still an error */
+    }
+    return { error: detail };
+  }
+
+  // Registration signs the new user straight in - the API issues a token
+  // and a refresh cookie exactly as login does.
+  await writeSession((await response.json()) as TokenResponse, readRefreshCookie(response));
+
+  // Outside the try, so redirect()'s control-flow throw is not caught.
+  redirect("/exceptions");
+}
+
 export async function signOut(): Promise<void> {
   const refresh = (await cookies()).get(REFRESH_COOKIE)?.value;
 

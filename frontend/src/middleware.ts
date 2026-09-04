@@ -15,10 +15,10 @@ import { NextResponse, type NextRequest } from "next/server";
  * look like an attack.
  */
 
-//: /session-expired clears a dead session and forwards to /login. It
-//: must be reachable *with* a cookie present - that is the whole
-//: point of it - so it is public.
-const PUBLIC_PATHS = ["/login", "/session-expired"];
+//: Public routes. /register lets a visitor self-provision an analyst
+//: account; /session-expired clears a dead session and forwards to
+//: /login, so it must be reachable *with* a (dead) cookie present.
+const PUBLIC_PATHS = ["/login", "/register", "/session-expired"];
 
 const API =
   process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
@@ -47,10 +47,10 @@ export async function middleware(request: NextRequest) {
   const refresh = request.cookies.get(REFRESH_COOKIE)?.value;
 
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
-    // Already signed in and asking for the login page: send them on.
+    // Already signed in and asking for an auth page: send them on.
     // Never do this for /session-expired, which exists precisely to be
     // reached while a (dead) cookie is still set.
-    if (access && pathname.startsWith("/login")) {
+    if (access && (pathname.startsWith("/login") || pathname.startsWith("/register"))) {
       const url = request.nextUrl.clone();
       url.pathname = "/exceptions";
       url.search = "";

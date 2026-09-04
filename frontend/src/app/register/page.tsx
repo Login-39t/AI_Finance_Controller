@@ -1,15 +1,17 @@
 import Link from "next/link";
 import { GraphIcon } from "@phosphor-icons/react/dist/ssr";
 
-import { SignInForm } from "@/components/sign-in-form";
+import { SignUpForm } from "@/components/sign-up-form";
 
 /**
- * Sign in.
+ * Create an account.
  *
- * Outside the `(app)` group on purpose: no nav, no run context, nothing
- * that would make an API call the visitor is not yet allowed to make.
+ * Public and outside the `(app)` group, like sign-in. Self-registration
+ * only ever mints an analyst - the role is not a field on the form or the
+ * request - so opening this page cannot escalate anyone. An admin grants a
+ * higher role afterwards from the Users page.
  */
-export default function LoginPage() {
+export default function RegisterPage() {
   return (
     <main className="flex min-h-[100dvh] items-center justify-center px-4 py-10">
       <div className="w-full max-w-[380px]">
@@ -27,18 +29,18 @@ export default function LoginPage() {
           className="mb-1 text-[19px] font-semibold tracking-tight"
           style={{ color: "var(--ink)" }}
         >
-          Sign in
+          Create your account
         </h1>
         <p className="mb-5 text-[12.5px]" style={{ color: "var(--ink-2)" }}>
-          Every decision below is recorded against your name and role.
+          Every decision you record will be kept against your name and role.
         </p>
 
-        <SignInForm />
+        <SignUpForm />
 
         <p className="mt-5 text-[12.5px]" style={{ color: "var(--ink-2)" }}>
-          New here?{" "}
-          <Link href="/register" style={{ color: "var(--flag)" }}>
-            Create an account
+          Already have an account?{" "}
+          <Link href="/login" style={{ color: "var(--flag)" }}>
+            Sign in
           </Link>
         </p>
       </div>
