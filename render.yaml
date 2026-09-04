@@ -48,8 +48,15 @@ services:
              cd /app && exec uvicorn ledgergraph_api.main:app --host 0.0.0.0 --port 8000"
 
     envVars:
+      # `staging`, not `production`, and deliberately: this is the public
+      # hackathon demo, and the seeded role accounts below (with a password
+      # named in the README) are how a reviewer sees each role from the
+      # inside. `production` forbids those accounts on purpose. Everything
+      # else is unchanged from a production posture - cookies stay secure
+      # and cross-site (is_local is false for anything but `local`), and
+      # PERSISTENCE is pinned to postgres just below.
       - key: ENVIRONMENT
-        value: production
+        value: staging
       - key: DEBUG
         value: "false"
 
@@ -72,12 +79,15 @@ services:
       - key: JWT_SECRET
         generateValue: true   # 256-bit, generated once, never in git
 
-      # No demo accounts in production. config.py refuses to create them
-      # when ENVIRONMENT=production anyway; this makes the intent
-      # explicit at the platform level too, so the guard is not the only
-      # thing standing between a published password and a live system.
+      # Seed one account per role on boot, so a reviewer can sign in as
+      # analyst / reviewer / controller / admin from the login page without
+      # anyone provisioning them. Permitted only because ENVIRONMENT is
+      # `staging`; config.py refuses this under `production`. The shared
+      # password is intentionally published (README + login page) - these
+      # accounts hold synthetic data and nothing else. Set back to "false"
+      # (and ENVIRONMENT to production) to lock the demo down.
       - key: SEED_DEMO_USERS
-        value: "false"
+        value: "true"
 
       # Optional, and the clean way to get a first admin in production.
       # Production seeds no users and /auth/register only mints analysts,

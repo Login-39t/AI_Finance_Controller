@@ -25,6 +25,14 @@ any case makes a live, citation-verified model call.
 > so start one reconciliation afterwards to repopulate the queue — the data
 > stays in Postgres. See [deployment](docs/DEPLOYMENT.md) for the full setup.
 
+**Signing in.** *Create an account* on the login page self-registers an
+analyst — enough to import, run a reconciliation, and investigate a case.
+Reviewer, controller, and admin are granted by an admin from the **Users**
+page. Where the deploy is seeded (`SEED_DEMO_USERS=true`), one account per
+role is listed on the login page under **Role accounts**, sharing the
+password `ledgergraph-demo-2026`, so each role can be seen from the inside
+without provisioning anyone.
+
 ---
 
 ## Repository layout

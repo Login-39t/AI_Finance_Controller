@@ -86,6 +86,7 @@ export function SignUpForm() {
           name="password"
           type="password"
           required
+          minLength={10}
           autoComplete="new-password"
           className={FIELD}
           style={fieldStyle()}

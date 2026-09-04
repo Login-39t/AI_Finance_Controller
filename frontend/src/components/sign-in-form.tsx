@@ -57,7 +57,7 @@ export function SignInForm() {
           type="email"
           autoComplete="username"
           required
-          defaultValue="controller@ledgergraph.dev"
+          placeholder="controller@ledgergraph.dev"
           className={FIELD}
           style={fieldStyle()}
         />
