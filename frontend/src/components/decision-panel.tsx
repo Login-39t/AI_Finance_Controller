@@ -164,7 +164,7 @@ export function DecisionPanel({
                   key={a}
                   type="button"
                   onClick={() => setAction(a)}
-                  className="flex-1 px-2.5 py-1.5 text-[12.5px] capitalize font-medium transition-all duration-150 active:translate-y-px"
+                  className="flex-1 cursor-pointer px-2.5 py-1.5 text-[12.5px] capitalize font-medium transition-all duration-150 active:translate-y-px"
                   style={{
                     borderRadius: "calc(var(--radius) - 3px)",
                     borderColor: isActive ? "var(--line)" : "transparent",

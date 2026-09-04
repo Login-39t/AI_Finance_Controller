@@ -122,7 +122,7 @@ function RoleForm({ user, isSelf }: { user: User; isSelf: boolean }) {
       {!isSelf && (
         <button
           type="submit"
-          className="px-2 py-1 text-[12px] transition-colors duration-100"
+          className="cursor-pointer px-2 py-1 text-[12px] transition-colors duration-100"
           style={{ borderRadius: "var(--radius)", background: "var(--surface-2)", color: "var(--ink)" }}
         >
           Update

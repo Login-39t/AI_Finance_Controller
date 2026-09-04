@@ -29,7 +29,7 @@ export function UserMenu({ name, role }: { name: string; role: Role }) {
           type="submit"
           aria-label="Sign out"
           title="Sign out"
-          className="flex items-center px-1.5 py-1 transition-colors duration-100"
+          className="flex cursor-pointer items-center px-1.5 py-1 transition-colors duration-100"
           style={{ color: "var(--ink-3)", borderRadius: "var(--radius)" }}
         >
           <SignOutIcon size={15} weight="bold" />
