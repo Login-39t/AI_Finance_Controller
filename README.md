@@ -180,19 +180,6 @@ The in-memory store has no durability, no concurrent writers, and none of the sc
 
 ---
 
-## The build in four days
-
-| Day | Focus | Ships |
-|---|---|---|
-| 1 | Foundation | Money type · schema · synthetic generator with ground truth · ingestion · walking-skeleton deploy |
-| 2 | The engine | Run orchestration · rules R1–R5 · amount bridge · 8 exception detectors · confidence · the auto-resolve gate |
-| 3 | The product | Full auth + RBAC · exceptions queue · case detail · decision workflow · audit trail |
-| 4 | The differentiator | Grounded AI investigation with citation verification · held-out evaluation metrics · export · hosted deploy |
-
-**Never cut:** the evidence packet, the auto-resolve gate, the audit trail, the held-out metrics. Those four *are* the submission.
-
----
-
 ## Design documents
 
 | # | Document | Covers |
