@@ -2,6 +2,7 @@ import Link from "next/link";
 import { GraphIcon } from "@phosphor-icons/react/dist/ssr";
 
 import { UserMenu } from "@/components/user-menu";
+import { AppNav } from "@/components/app-nav";
 import { latestRun } from "@/lib/api";
 import { currentUser } from "@/lib/session";
 
@@ -61,25 +62,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </Link>
         </div>
 
-        <nav
-          className="flex shrink-0 items-center justify-center gap-1 p-1"
-          style={{
-            background: "rgba(255, 255, 255, 0.03)",
-            borderRadius: "var(--radius)",
-            border: "1px solid var(--line-soft)",
-          }}
-        >
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="whitespace-nowrap px-3 py-1 text-[13px] font-medium transition-all duration-150 hover:bg-[rgba(255,255,255,0.06)] hover:text-[var(--ink)]"
-              style={{ color: "var(--ink-2)", borderRadius: "calc(var(--radius) - 3px)" }}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+        <AppNav items={navItems} />
 
         <div className="flex flex-1 min-w-0 items-center justify-end gap-4 whitespace-nowrap">
           {run && (

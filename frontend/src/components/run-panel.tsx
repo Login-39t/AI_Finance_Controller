@@ -152,7 +152,7 @@ export function RunPanel({ initialRun }: { initialRun: Run | null }) {
               <Metric
                 label="Unresolved value"
                 value={formatMinor(metrics.unresolvedValueMinor)}
-                tone="flag"
+                tone="danger"
               />
             </dl>
             <p className="num text-[11px]" style={{ color: "var(--ink-3)" }}>
@@ -174,16 +174,18 @@ function Metric({
 }: {
   label: string;
   value: string;
-  tone?: "ok" | "warn" | "flag";
+  tone?: "ok" | "warn" | "flag" | "danger";
 }) {
   const color =
-    tone === "ok"
-      ? "var(--ok)"
-      : tone === "warn"
-        ? "var(--warn)"
-        : tone === "flag"
-          ? "var(--flag)"
-          : "var(--ink)";
+    tone === "danger"
+      ? "var(--danger)"
+      : tone === "ok"
+        ? "var(--ok)"
+        : tone === "warn"
+          ? "var(--warn)"
+          : tone === "flag"
+            ? "var(--flag)"
+            : "var(--ink)";
   return (
     <div>
       <dt className="label">{label}</dt>
