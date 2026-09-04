@@ -15,6 +15,7 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 
 import { Reveal } from "@/components/reveal";
+import { LandingNav } from "@/components/landing-nav";
 
 const GITHUB = "https://github.com/Login-39t/AI_Finance_Controller";
 
@@ -68,40 +69,6 @@ const FEATURES: { icon: React.ReactNode; title: string; body: string }[] = [
   { icon: <LockKeyIcon size={18} weight="regular" />, title: "Role-based access", body: "Analyst, reviewer, controller, admin — and a material-amount threshold the API enforces." },
   { icon: <DownloadSimpleIcon size={18} weight="regular" />, title: "Held-out metrics & exports", body: "Precision and recall measured on data the tuning never saw. Results export as exact-value CSV." },
 ];
-
-function NavBar() {
-  return (
-    <header
-      className="sticky top-0 z-30 border-b backdrop-blur"
-      style={{ background: "color-mix(in srgb, var(--bg) 82%, transparent)", borderColor: "var(--line)" }}
-    >
-      <div className="mx-auto flex h-14 max-w-[1120px] items-center gap-2 px-5 sm:px-8">
-        <Link href="/" className="flex items-center gap-2">
-          <GraphIcon size={19} weight="duotone" style={{ color: "var(--flag)" }} />
-          <span className="text-[14px] font-semibold tracking-tight" style={{ color: "var(--ink)" }}>
-            TallyProof
-          </span>
-        </Link>
-        <nav className="ml-auto flex items-center gap-1 sm:gap-2">
-          <a href={GITHUB} target="_blank" rel="noreferrer"
-            className="hidden px-2.5 py-1.5 text-[12.5px] transition-colors sm:inline"
-            style={{ color: "var(--ink-2)" }}>
-            GitHub
-          </a>
-          <Link href="/login" className="px-2.5 py-1.5 text-[12.5px] transition-colors"
-            style={{ color: "var(--ink-2)" }}>
-            Sign in
-          </Link>
-          <Link href="/register"
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-medium transition-transform active:translate-y-px"
-            style={{ borderRadius: "var(--radius)", background: "var(--flag)", color: "#fff" }}>
-            Get started <ArrowRightIcon size={13} weight="bold" />
-          </Link>
-        </nav>
-      </div>
-    </header>
-  );
-}
 
 function HeroGraph() {
   // The mark, animated: five sources, one settlement at the centre, coral
@@ -171,10 +138,15 @@ function SectionEyebrow({ children }: { children: React.ReactNode }) {
 }
 
 export default function LandingPage() {
+  // `overflow-x: clip`, not `hidden`, on the wrapper below: `hidden` makes
+  // overflow-y compute to `auto`, which turns the wrapper into a scroll
+  // container and breaks the `position: sticky` nav (it would stick to this
+  // box, not the window, so it scrolled away). `clip` contains the same
+  // horizontal overflow without establishing a scroll container - the bar pins.
   return (
-    <div style={{ background: "var(--bg)", color: "var(--ink)", overflowX: "hidden" }}>
+    <div style={{ background: "var(--bg)", color: "var(--ink)", overflowX: "clip" }}>
       <style>{KEYFRAMES}</style>
-      <NavBar />
+      <LandingNav github={GITHUB} />
 
       {/* ---- Hero ---- */}
       <section className="relative mx-auto max-w-[1120px] px-5 pb-16 pt-14 sm:px-8 sm:pt-20 lg:pb-24">

@@ -207,12 +207,11 @@ section.border > header:first-child {
   background: rgba(255, 255, 255, 0.02);
 }
 
-/* Sticky top navigation glass effect */
-header.sticky {
-  backdrop-filter: blur(16px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4), inset 0 -1px 0 0 rgba(255, 255, 255, 0.05);
-}
+/* The sticky top bars (app shell and landing) own their glass inline, so
+   they can animate it on scroll - flat at the top, blurred once lifted. A
+   blanket `header.sticky` blur here overrode that toggle with !important
+   and pinned the blur on, so it is gone; AppHeader and LandingNav carry
+   the effect and its transition themselves. */
 
 /* Glass styling for all dropdowns / select elements */
 select {
