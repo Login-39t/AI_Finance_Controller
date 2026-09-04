@@ -103,7 +103,11 @@ export default async function ExceptionsPage({
 
         <dl className="flex flex-wrap items-end gap-x-8 gap-y-3">
           <Stat label="Exposure shown" value={formatMinor(exposure.toString())} tone="flag" />
-          <Stat label="Critical" value={String(criticalCount)} />
+          <Stat
+            label="Critical"
+            value={String(criticalCount)}
+            tone={criticalCount > 0 ? "danger" : undefined}
+          />
           <Stat
             label="Auto-resolved"
             value={run?.metrics ? String(run.metrics.autoResolved) : "——"}
@@ -249,10 +253,16 @@ function Stat({
 }: {
   label: string;
   value: string;
-  tone?: "flag" | "ok";
+  tone?: "flag" | "ok" | "danger";
 }) {
   const color =
-    tone === "flag" ? "var(--flag)" : tone === "ok" ? "var(--ok)" : "var(--ink)";
+    tone === "danger"
+      ? "var(--danger)"
+      : tone === "flag"
+        ? "var(--flag)"
+        : tone === "ok"
+          ? "var(--ok)"
+          : "var(--ink)";
   return (
     <div>
       <dt className="label">{label}</dt>

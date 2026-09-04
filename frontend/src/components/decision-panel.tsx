@@ -77,14 +77,16 @@ export function DecisionPanel({
   if (decided) {
     return (
       <section
-        className="border"
+        className="border backdrop-blur-md"
         style={{
           background: "var(--surface)",
           borderColor: "var(--line)",
           borderRadius: "var(--radius)",
+          boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37), inset 0 1px 0 0 rgba(255, 255, 255, 0.08)",
+          overflow: "hidden",
         }}
       >
-        <header className="border-b px-4 py-2.5" style={{ borderColor: "var(--line)" }}>
+        <header className="border-b px-4 py-2.5" style={{ borderColor: "var(--line)", background: "rgba(255, 255, 255, 0.015)" }}>
           <h2 className="text-[13px] font-semibold" style={{ color: "var(--ink)" }}>
             Decision
           </h2>
@@ -124,14 +126,16 @@ export function DecisionPanel({
 
   return (
     <section
-      className="border"
+      className="border backdrop-blur-md"
       style={{
         background: "var(--surface)",
         borderColor: "var(--line)",
         borderRadius: "var(--radius)",
+        boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37), inset 0 1px 0 0 rgba(255, 255, 255, 0.08)",
+        overflow: "hidden",
       }}
     >
-      <header className="border-b px-4 py-2.5" style={{ borderColor: "var(--line)" }}>
+      <header className="border-b px-4 py-2.5" style={{ borderColor: "var(--line)", background: "rgba(255, 255, 255, 0.015)" }}>
         <h2 className="text-[13px] font-semibold" style={{ color: "var(--ink)" }}>
           Decision
         </h2>
@@ -143,7 +147,15 @@ export function DecisionPanel({
 
         <div className="flex flex-col gap-1.5">
           <span className="label">Action</span>
-          <div className="flex gap-1">
+          <div
+            className="flex gap-1 p-1"
+            style={{
+              background: "var(--surface-2)",
+              borderRadius: "var(--radius)",
+              border: "1px solid var(--line)",
+              backdropFilter: "blur(12px)",
+            }}
+          >
             {(["approve", "reject", "override", "dismiss"] as const).map((a) => {
               const isActive = action === a;
               return (
@@ -151,12 +163,13 @@ export function DecisionPanel({
                   key={a}
                   type="button"
                   onClick={() => setAction(a)}
-                  className="flex-1 border px-2 py-1.5 text-[12.5px] capitalize transition-colors duration-100 active:translate-y-px"
+                  className="flex-1 px-2.5 py-1.5 text-[12.5px] capitalize font-medium transition-all duration-150 active:translate-y-px"
                   style={{
-                    borderRadius: "var(--radius)",
-                    borderColor: isActive ? "var(--ink)" : "var(--line)",
-                    background: isActive ? "var(--ink)" : "transparent",
-                    color: isActive ? "var(--surface)" : "var(--ink-2)",
+                    borderRadius: "calc(var(--radius) - 3px)",
+                    borderColor: isActive ? "var(--line)" : "transparent",
+                    background: isActive ? "var(--surface-3)" : "transparent",
+                    color: isActive ? "var(--ink)" : "var(--ink-2)",
+                    boxShadow: isActive ? "0 2px 8px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.1)" : undefined,
                   }}
                 >
                   {a}
@@ -176,17 +189,18 @@ export function DecisionPanel({
               name="reasonCode"
               value={reasonCode}
               onChange={(e) => setReasonCode(e.target.value)}
-              className="w-full border px-2 py-1.5 text-[12.5px]"
+              className="w-full border px-3 py-2 text-[12.5px] cursor-pointer"
               style={{
                 borderRadius: "var(--radius)",
                 borderColor: "var(--line)",
-                background: "var(--surface)",
+                background: "var(--surface-2)",
                 color: "var(--ink)",
+                backdropFilter: "blur(12px)",
               }}
             >
-              <option value="">Select a reason</option>
+              <option value="" style={{ background: "#0f121a", color: "var(--ink)" }}>Select a reason</option>
               {REASON_CODES.map((r) => (
-                <option key={r.code} value={r.code}>
+                <option key={r.code} value={r.code} style={{ background: "#0f121a", color: "var(--ink)" }}>
                   {r.label}
                 </option>
               ))}
@@ -203,12 +217,13 @@ export function DecisionPanel({
             name="note"
             rows={3}
             placeholder="What you checked, and what you concluded."
-            className="w-full resize-y border px-2 py-1.5 text-[12.5px]"
+            className="w-full resize-y border px-3 py-2 text-[12.5px]"
             style={{
               borderRadius: "var(--radius)",
               borderColor: "var(--line)",
-              background: "var(--surface)",
+              background: "var(--surface-2)",
               color: "var(--ink)",
+              backdropFilter: "blur(12px)",
             }}
           />
           <p className="text-[11.5px]" style={{ color: "var(--ink-3)" }}>
@@ -239,10 +254,11 @@ export function DecisionPanel({
 
         {state.status !== "idle" && state.message && (
           <p
-            className="border-l-2 py-1 pl-2.5 text-[12px]"
+            className="border-l-2 py-1.5 pl-3 text-[12px] rounded-r-[var(--radius)]"
             style={{
-              borderColor: state.status === "ok" ? "var(--ok)" : "var(--flag)",
-              color: "var(--ink-2)",
+              borderColor: state.status === "ok" ? "var(--ok)" : "var(--danger)",
+              background: state.status === "ok" ? "var(--ok-wash)" : "var(--danger-wash)",
+              color: state.status === "ok" ? "var(--ok)" : "var(--danger)",
             }}
             role="status"
           >
@@ -270,12 +286,14 @@ function SubmitButton({
     <button
       type="submit"
       disabled={disabled}
-      className="flex w-full items-center justify-center gap-2 whitespace-nowrap px-3 py-2 text-[12.5px] font-medium transition-colors duration-100 active:translate-y-px"
+      className="flex w-full items-center justify-center gap-2 whitespace-nowrap px-3 py-2.5 text-[12.5px] font-medium transition-all duration-150 active:translate-y-px"
       style={{
         borderRadius: "var(--radius)",
         background: disabled ? "var(--surface-2)" : "var(--flag)",
         color: disabled ? "var(--ink-3)" : "#ffffff",
         cursor: disabled ? "not-allowed" : "pointer",
+        backdropFilter: "blur(12px)",
+        boxShadow: disabled ? "none" : "0 4px 14px rgba(0, 112, 243, 0.35)",
       }}
     >
       {pending && <SpinnerGapIcon size={13} weight="bold" className="animate-spin" />}

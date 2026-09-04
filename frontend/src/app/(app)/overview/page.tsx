@@ -35,16 +35,18 @@ function Stat({
   label: string;
   value: string;
   sub?: string;
-  tone?: "ok" | "warn" | "flag";
+  tone?: "ok" | "warn" | "flag" | "danger";
 }) {
   const color =
-    tone === "ok"
-      ? "var(--ok)"
-      : tone === "warn"
-        ? "var(--warn)"
-        : tone === "flag"
-          ? "var(--flag)"
-          : "var(--ink)";
+    tone === "danger"
+      ? "var(--danger)"
+      : tone === "ok"
+        ? "var(--ok)"
+        : tone === "warn"
+          ? "var(--warn)"
+          : tone === "flag"
+            ? "var(--flag)"
+            : "var(--ink)";
   return (
     <div className="min-w-0">
       <dt className="label">{label}</dt>
@@ -94,7 +96,7 @@ function ShareBar({
 }
 
 const SEVERITY_COLOR: Record<string, string> = {
-  critical: "var(--flag)",
+  critical: "var(--danger)",
   high: "var(--warn)",
   medium: "var(--ink-2)",
   low: "var(--ink-3)",

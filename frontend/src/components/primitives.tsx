@@ -27,7 +27,7 @@ export function Money({
 }
 
 const SEVERITY_STYLE: Record<Severity, { dot: string; label: string }> = {
-  critical: { dot: "var(--flag)", label: "Critical" },
+  critical: { dot: "var(--danger)", label: "Critical" },
   high: { dot: "var(--warn)", label: "High" },
   medium: { dot: "var(--ink-3)", label: "Medium" },
   low: { dot: "var(--line)", label: "Low" },
@@ -39,15 +39,29 @@ const SEVERITY_STYLE: Record<Severity, { dot: string; label: string }> = {
  */
 export function SeverityMark({ severity, withLabel = false }: { severity: Severity; withLabel?: boolean }) {
   const s = SEVERITY_STYLE[severity];
+  const isCritical = severity === "critical";
   return (
     <span className="inline-flex items-center gap-1.5" title={`${s.label} severity`}>
       <span
         aria-hidden
         className="inline-block h-[7px] w-[7px] shrink-0"
-        style={{ background: s.dot, borderRadius: "1px" }}
+        style={{
+          background: s.dot,
+          borderRadius: "2px",
+          boxShadow: isCritical ? "0 0 8px rgba(239, 68, 68, 0.7)" : undefined,
+        }}
       />
       <span className="sr-only">{s.label} severity</span>
-      {withLabel && <span style={{ color: "var(--ink-2)" }}>{s.label}</span>}
+      {withLabel && (
+        <span
+          style={{
+            color: isCritical ? "var(--danger)" : "var(--ink-2)",
+            fontWeight: isCritical ? 600 : 400,
+          }}
+        >
+          {s.label}
+        </span>
+      )}
     </span>
   );
 }
@@ -69,7 +83,7 @@ export function StatusPill({ status }: { status: CaseStatus }) {
   const tone = STATUS_TONE[status];
   return (
     <span
-      className="inline-block whitespace-nowrap px-1.5 py-[1px] text-[11px] font-medium"
+      className="inline-block whitespace-nowrap px-1.5 py-[1px] text-[11px] font-medium backdrop-blur-sm"
       style={{ color: tone.fg, background: tone.bg, borderRadius: "var(--radius)" }}
     >
       {STATUS_LABEL[status]}
@@ -118,12 +132,18 @@ export function Panel({
 }) {
   return (
     <section
-      className="border"
-      style={{ background: "var(--surface)", borderColor: "var(--line)", borderRadius: "var(--radius)" }}
+      className="border backdrop-blur-md"
+      style={{
+        background: "var(--surface)",
+        borderColor: "var(--line)",
+        borderRadius: "var(--radius)",
+        boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37), inset 0 1px 0 0 rgba(255, 255, 255, 0.08)",
+        overflow: "hidden",
+      }}
     >
       <header
         className="flex flex-wrap items-baseline justify-between gap-2 border-b px-4 py-2.5"
-        style={{ borderColor: "var(--line)" }}
+        style={{ borderColor: "var(--line)", background: "rgba(255, 255, 255, 0.015)" }}
       >
         <div className="flex items-baseline gap-3">
           <h2 className="text-[13px] font-semibold" style={{ color: "var(--ink)" }}>

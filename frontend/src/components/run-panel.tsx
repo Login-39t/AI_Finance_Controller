@@ -102,12 +102,13 @@ export function RunPanel({ initialRun }: { initialRun: Run | null }) {
           type="button"
           onClick={start}
           disabled={busy}
-          className="flex items-center justify-center gap-2 whitespace-nowrap px-3 py-2 text-[12.5px] font-medium transition-colors duration-100 active:translate-y-px"
+          className="flex items-center justify-center gap-2 whitespace-nowrap px-3 py-2.5 text-[12.5px] font-medium transition-all duration-150 active:translate-y-px"
           style={{
             borderRadius: "var(--radius)",
             background: busy ? "var(--surface-2)" : "var(--flag)",
             color: busy ? "var(--ink-3)" : "#ffffff",
             cursor: busy ? "not-allowed" : "pointer",
+            boxShadow: busy ? "none" : "0 4px 14px rgba(0, 112, 243, 0.35)",
           }}
         >
           {busy ? (
@@ -120,8 +121,12 @@ export function RunPanel({ initialRun }: { initialRun: Run | null }) {
 
         {error && (
           <p
-            className="border-l-2 py-1 pl-2.5 text-[12px]"
-            style={{ borderColor: "var(--flag)", color: "var(--ink-2)" }}
+            className="border-l-2 py-1.5 pl-3 text-[12px] rounded-r-[var(--radius)]"
+            style={{
+              borderColor: "var(--danger)",
+              background: "var(--danger-wash)",
+              color: "var(--danger)",
+            }}
           >
             {error}
           </p>
@@ -130,7 +135,9 @@ export function RunPanel({ initialRun }: { initialRun: Run | null }) {
         {run && (
           <p className="text-[12.5px]" style={{ color: "var(--ink-2)" }}>
             Status <span className="num">{run.status}</span>
-            {run.error ? ` — ${run.error}` : null}
+            {run.error ? (
+              <span style={{ color: "var(--danger)" }}> — {run.error}</span>
+            ) : null}
           </p>
         )}
 

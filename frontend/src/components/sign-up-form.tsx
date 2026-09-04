@@ -13,8 +13,9 @@ function fieldStyle() {
   return {
     borderRadius: "var(--radius)",
     borderColor: "var(--line)",
-    background: "var(--surface)",
+    background: "var(--surface-2)",
     color: "var(--ink)",
+    backdropFilter: "blur(12px)",
   } as const;
 }
 
@@ -24,12 +25,13 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="flex w-full items-center justify-center gap-2 px-3 py-2 text-[13px] font-medium transition-colors duration-100 active:translate-y-px"
+      className="flex w-full items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium transition-all duration-150 active:translate-y-px"
       style={{
         borderRadius: "var(--radius)",
         background: pending ? "var(--surface-2)" : "var(--flag)",
         color: pending ? "var(--ink-3)" : "#ffffff",
         cursor: pending ? "not-allowed" : "pointer",
+        boxShadow: pending ? "none" : "0 4px 14px rgba(0, 112, 243, 0.35)",
       }}
     >
       {pending && <SpinnerGapIcon size={13} weight="bold" className="animate-spin" />}
@@ -42,31 +44,34 @@ export function SignUpForm() {
   const [state, action] = useActionState(signUp, { error: null });
 
   return (
-    <form action={action} className="flex flex-col gap-3">
+    <form action={action} className="mt-5 flex flex-col gap-3.5">
       <div className="flex flex-col gap-1">
-        <label htmlFor="fullName" className="label">
-          Full name
+        <label htmlFor="email" className="label">
+          Work email
         </label>
         <input
-          id="fullName"
-          name="fullName"
-          autoComplete="name"
+          id="email"
+          name="email"
+          type="email"
           required
+          autoComplete="username"
+          placeholder="analyst@ledgergraph.dev"
           className={FIELD}
           style={fieldStyle()}
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor="email" className="label">
-          Email
+        <label htmlFor="name" className="label">
+          Full name
         </label>
         <input
-          id="email"
-          name="email"
-          type="email"
-          autoComplete="email"
+          id="name"
+          name="name"
+          type="text"
           required
+          autoComplete="name"
+          placeholder="Ada Lovelace"
           className={FIELD}
           style={fieldStyle()}
         />
@@ -80,8 +85,8 @@ export function SignUpForm() {
           id="password"
           name="password"
           type="password"
-          autoComplete="new-password"
           required
+          autoComplete="new-password"
           className={FIELD}
           style={fieldStyle()}
         />
@@ -99,8 +104,12 @@ export function SignUpForm() {
 
       {state.error && (
         <p
-          className="flex items-start gap-1.5 border-l-2 py-1 pl-2.5 text-[12px]"
-          style={{ borderColor: "var(--flag)", color: "var(--ink-2)" }}
+          className="flex items-start gap-1.5 border-l-2 py-1.5 pl-3 text-[12px] rounded-r-[var(--radius)]"
+          style={{
+            borderColor: "var(--danger)",
+            background: "var(--danger-wash)",
+            color: "var(--danger)",
+          }}
           role="alert"
         >
           <WarningCircleIcon size={13} weight="bold" className="mt-px shrink-0" />

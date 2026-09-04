@@ -52,15 +52,15 @@ export function Timeline({
             return (
               <li key={stage} className="flex flex-1 items-stretch">
                 <div
-                  className="flex-1 border px-3 py-2.5"
+                  className="flex-1 border px-3 py-2.5 backdrop-blur-sm"
                   style={{
                     borderRadius: "var(--radius)",
-                    borderColor: hit ? "var(--line)" : "var(--flag-line)",
+                    borderColor: hit ? "var(--line)" : "var(--danger-line)",
                     borderStyle: hit ? "solid" : "dashed",
-                    background: hit ? "var(--surface-2)" : "transparent",
+                    background: hit ? "var(--surface-2)" : "var(--danger-wash)",
                   }}
                 >
-                  <div className="label" style={{ color: hit ? "var(--ink-3)" : "var(--flag)" }}>
+                  <div className="label" style={{ color: hit ? "var(--ink-3)" : "var(--danger)" }}>
                     {STAGE_LABEL[stage]}
                   </div>
                   {hit ? (
@@ -73,7 +73,7 @@ export function Timeline({
                       </div>
                     </>
                   ) : (
-                    <div className="mt-1 text-[12px]" style={{ color: "var(--flag)" }}>
+                    <div className="mt-1 text-[12px] font-medium" style={{ color: "var(--danger)" }}>
                       Not attributed
                     </div>
                   )}
@@ -118,8 +118,8 @@ export function AmountBridgeView({ bridge }: { bridge: AmountBridge }) {
           className="inline-flex items-center gap-1.5 px-2 py-[2px] text-[11.5px] font-medium"
           style={{
             borderRadius: "var(--radius)",
-            color: bridge.balances ? "var(--ok)" : "var(--flag)",
-            background: bridge.balances ? "var(--ok-wash)" : "var(--flag-wash)",
+            color: bridge.balances ? "var(--ok)" : "var(--danger)",
+            background: bridge.balances ? "var(--ok-wash)" : "var(--danger-wash)",
           }}
         >
           {bridge.balances ? <CheckIcon size={11} weight="bold" /> : <XIcon size={11} weight="bold" />}
@@ -211,8 +211,8 @@ export function EvidenceList({ evidence }: { evidence: Evidence[] }) {
                 className="mt-[3px] inline-flex h-[15px] w-[15px] shrink-0 items-center justify-center"
                 style={{
                   borderRadius: "var(--radius)",
-                  background: e.passed ? "var(--ok-wash)" : "var(--flag-wash)",
-                  color: e.passed ? "var(--ok)" : "var(--flag)",
+                  background: e.passed ? "var(--ok-wash)" : "var(--danger-wash)",
+                  color: e.passed ? "var(--ok)" : "var(--danger)",
                 }}
                 aria-label={e.passed ? "Passed" : "Failed"}
               >
@@ -270,9 +270,9 @@ export function CandidateList({ candidates, margin }: { candidates: Candidate[];
       {contested && (
         <div
           className="flex items-start gap-2.5 border-b px-4 py-3"
-          style={{ background: "var(--flag-wash)", borderColor: "var(--flag-line)" }}
+          style={{ background: "var(--danger-wash)", borderColor: "var(--danger-line)" }}
         >
-          <WarningIcon size={15} weight="fill" style={{ color: "var(--flag)", marginTop: 1 }} />
+          <WarningIcon size={15} weight="fill" style={{ color: "var(--danger)", marginTop: 1 }} />
           <p className="text-[12.5px]" style={{ color: "var(--ink)" }}>
             <strong className="font-semibold">Two candidates are indistinguishable.</strong> The
             leading candidate is {candidates[0].marginToRunnerUp?.toFixed(2)} ahead, inside the{" "}
@@ -326,7 +326,7 @@ export function CandidateList({ candidates, margin }: { candidates: Candidate[];
                   <dt className="label">{k}</dt>
                   <dd
                     className="num text-[11.5px]"
-                    style={{ color: v === 0 ? "var(--flag)" : "var(--ink-2)" }}
+                    style={{ color: v === 0 ? "var(--danger)" : "var(--ink-2)" }}
                   >
                     {v.toFixed(2)}
                   </dd>
@@ -376,8 +376,8 @@ export function GatePanel({ conditions }: { conditions: GateCondition[] }) {
               className="inline-flex h-[15px] w-[15px] shrink-0 items-center justify-center"
               style={{
                 borderRadius: "var(--radius)",
-                background: c.passed ? "var(--ok-wash)" : "var(--flag-wash)",
-                color: c.passed ? "var(--ok)" : "var(--flag)",
+                background: c.passed ? "var(--ok-wash)" : "var(--danger-wash)",
+                color: c.passed ? "var(--ok)" : "var(--danger)",
               }}
               aria-label={c.passed ? "Met" : "Not met"}
             >
@@ -461,7 +461,7 @@ export function AiPanel({
 
       {investigation && investigation.validationStatus !== "valid" && (
         <div className="px-4 py-4">
-          <p className="text-[12.5px] font-medium" style={{ color: "var(--flag)" }}>
+          <p className="text-[12.5px] font-medium" style={{ color: "var(--danger)" }}>
             No grounded answer was produced.
           </p>
           <p className="mt-1 text-[12.5px]" style={{ color: "var(--ink-2)" }}>
@@ -592,7 +592,7 @@ export function RecordList({ records }: { records: { role: string; transaction: 
             </dl>
 
             {t.dataQualityFlags.length > 0 && (
-              <p className="num mt-2 text-[11.5px]" style={{ color: "var(--flag)" }}>
+              <p className="num mt-2 text-[11.5px]" style={{ color: "var(--danger)" }}>
                 Data quality: {t.dataQualityFlags.join(", ")}
               </p>
             )}

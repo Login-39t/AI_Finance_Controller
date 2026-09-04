@@ -16,32 +16,37 @@
   --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, "SF Mono", monospace;
 
-  --radius-lg: 2px;
-  --radius-md: 2px;
-  --radius-sm: 2px;
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
 }
 
 :root {
   color-scheme: dark;
 
-  /* Surfaces - Obsidian & Slate palette from reference images */
+  /* Surfaces - Obsidian & Slate palette with Glassmorphic translucency */
   --bg:         #07080c;
-  --surface:    #0f121a;
-  --surface-2:  #151b26;
-  --surface-3:  #1c2333;
+  --surface:    rgba(15, 18, 26, 0.72);
+  --surface-2:  rgba(21, 27, 38, 0.65);
+  --surface-3:  rgba(28, 36, 52, 0.72);
 
   /* Text - Crisp white and cool slate hierarchy */
   --ink:        #f8fafc;
   --ink-2:      #94a3b8;
   --ink-3:      #64748b;
 
-  --line:       #1e2638;
-  --line-soft:  #141a26;
+  --line:       rgba(255, 255, 255, 0.08);
+  --line-soft:  rgba(255, 255, 255, 0.04);
 
   /* Primary Accent - Electric Blue from reference images */
   --flag:       #0070f3;
   --flag-wash:  rgba(0, 112, 243, 0.12);
   --flag-line:  rgba(0, 112, 243, 0.35);
+
+  /* Danger / Critical - Pure vivid Red */
+  --danger:      #ef4444;
+  --danger-wash: rgba(239, 68, 68, 0.15);
+  --danger-line: rgba(239, 68, 68, 0.4);
 
   /* Semantic state from reference images */
   --ok:         #10b981;
@@ -51,7 +56,7 @@
   --idle:       #64748b;
   --idle-wash:  rgba(100, 116, 139, 0.12);
 
-  --radius:     2px;
+  --radius:     12px;
   --row:        2.25rem;
 }
 
@@ -59,17 +64,20 @@
   :root:not([data-theme="light"]) {
     color-scheme: dark;
     --bg:         #07080c;
-    --surface:    #0f121a;
-    --surface-2:  #151b26;
-    --surface-3:  #1c2333;
+    --surface:    rgba(15, 18, 26, 0.72);
+    --surface-2:  rgba(21, 27, 38, 0.65);
+    --surface-3:  rgba(28, 36, 52, 0.72);
     --ink:        #f8fafc;
     --ink-2:      #94a3b8;
     --ink-3:      #64748b;
-    --line:       #1e2638;
-    --line-soft:  #141a26;
+    --line:       rgba(255, 255, 255, 0.08);
+    --line-soft:  rgba(255, 255, 255, 0.04);
     --flag:       #0070f3;
     --flag-wash:  rgba(0, 112, 243, 0.12);
     --flag-line:  rgba(0, 112, 243, 0.35);
+    --danger:      #ef4444;
+    --danger-wash: rgba(239, 68, 68, 0.15);
+    --danger-line: rgba(239, 68, 68, 0.4);
     --ok:         #10b981;
     --ok-wash:    rgba(16, 185, 129, 0.12);
     --warn:       #f59e0b;
@@ -82,17 +90,20 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
   --bg:         #07080c;
-  --surface:    #0f121a;
-  --surface-2:  #151b26;
-  --surface-3:  #1c2333;
+  --surface:    rgba(15, 18, 26, 0.72);
+  --surface-2:  rgba(21, 27, 38, 0.65);
+  --surface-3:  rgba(28, 36, 52, 0.72);
   --ink:        #f8fafc;
   --ink-2:      #94a3b8;
   --ink-3:      #64748b;
-  --line:       #1e2638;
-  --line-soft:  #141a26;
+  --line:       rgba(255, 255, 255, 0.08);
+  --line-soft:  rgba(255, 255, 255, 0.04);
   --flag:       #0070f3;
   --flag-wash:  rgba(0, 112, 243, 0.12);
   --flag-line:  rgba(0, 112, 243, 0.35);
+  --danger:      #ef4444;
+  --danger-wash: rgba(239, 68, 68, 0.15);
+  --danger-line: rgba(239, 68, 68, 0.4);
   --ok:         #10b981;
   --ok-wash:    rgba(16, 185, 129, 0.12);
   --warn:       #f59e0b;
@@ -104,17 +115,20 @@
 :root[data-theme="light"] {
   color-scheme: light;
   --bg:         #f6f7f9;
-  --surface:    #ffffff;
-  --surface-2:  #eef1f5;
-  --surface-3:  #e4e9f0;
+  --surface:    rgba(255, 255, 255, 0.85);
+  --surface-2:  rgba(238, 241, 245, 0.85);
+  --surface-3:  rgba(228, 233, 240, 0.85);
   --ink:        #151d29;
   --ink-2:      #46536a;
   --ink-3:      #667385;
-  --line:       #d6dce4;
-  --line-soft:  #e6eaf0;
+  --line:       rgba(0, 0, 0, 0.08);
+  --line-soft:  rgba(0, 0, 0, 0.04);
   --flag:       #0070f3;
   --flag-wash:  rgba(0, 112, 243, 0.08);
   --flag-line:  rgba(0, 112, 243, 0.25);
+  --danger:      #ef4444;
+  --danger-wash: rgba(239, 68, 68, 0.1);
+  --danger-line: rgba(239, 68, 68, 0.25);
   --ok:         #10b981;
   --ok-wash:    #e2efea;
   --warn:       #f59e0b;
@@ -130,10 +144,15 @@
 
 html {
   background: var(--bg);
+  min-height: 100%;
 }
 
 body {
-  background: var(--bg);
+  background-color: var(--bg);
+  background-image: 
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0, 112, 243, 0.14), transparent),
+    radial-gradient(ellipse 60% 40% at 85% 60%, rgba(0, 112, 243, 0.04), transparent);
+  background-attachment: fixed;
   color: var(--ink);
   font-family: var(--font-sans);
   font-size: 13.5px;
@@ -141,16 +160,14 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Every digit in this product lines up in a column. Non-negotiable in a
-   reconciliation tool: a misaligned amount column defeats scanning. */
+/* Every digit in this product lines up in a column */
 .num {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
 }
 
-/* Small uppercase field labels. Used for table headers and field captions,
-   NOT as decorative section eyebrows. */
+/* Small uppercase field labels */
 .label {
   font-family: var(--font-mono);
   font-size: 9.5px;
@@ -167,13 +184,96 @@ body {
 
 ::selection {
   background: var(--flag);
-  color: var(--surface);
+  color: #ffffff;
 }
 
-/* MOTION_INTENSITY 2. State-change feedback only: a row acknowledging the
-   cursor, a control acknowledging a press. Nothing animates on load, and
-   nothing loops. There is no entrance choreography to disable, but the
-   query is here so the intent is explicit rather than accidental. */
+/* ==========================================================================
+   Glassmorphism & Rounded Edge System
+   ========================================================================== */
+
+/* Universal card & panel glass styling */
+section.border,
+.glass-card {
+  border-radius: var(--radius) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37), inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Rounded headers inside panels */
+section.border > header:first-child {
+  border-top-left-radius: var(--radius);
+  border-top-right-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* Sticky top navigation glass effect */
+header.sticky {
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4), inset 0 -1px 0 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Glass styling for all dropdowns / select elements */
+select {
+  border-radius: var(--radius) !important;
+  background-color: var(--surface-2) !important;
+  border: 1px solid var(--line) !important;
+  color: var(--ink) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 256 256'%3E%3Cpath fill='%2394a3b8' d='m213.66 101.66l-80 80a8 8 0 0 1-11.32 0l-80-80a8 8 0 0 1 11.32-11.32L128 164.69l74.34-74.35a8 8 0 0 1 11.32 11.32Z'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 12px center !important;
+  padding-right: 36px !important;
+  transition: all 0.15s ease-in-out;
+}
+
+select:hover {
+  background-color: var(--surface-3) !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+}
+
+select:focus {
+  outline: none !important;
+  border-color: var(--flag) !important;
+  box-shadow: 0 0 0 2px var(--flag-wash), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+}
+
+select option {
+  background-color: #0f121a !important;
+  color: #f8fafc !important;
+  padding: 10px 14px;
+}
+
+/* Glass inputs and textareas */
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="number"],
+input[type="file"],
+textarea {
+  border-radius: var(--radius);
+  background-color: var(--surface-2);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: all 0.15s ease-in-out;
+}
+
+input:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--flag);
+  box-shadow: 0 0 0 2px var(--flag-wash), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

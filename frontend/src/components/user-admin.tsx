@@ -27,16 +27,17 @@ function fieldStyle() {
   return {
     borderRadius: "var(--radius)",
     borderColor: "var(--line)",
-    background: "var(--surface)",
+    background: "var(--surface-2)",
     color: "var(--ink)",
+    backdropFilter: "blur(12px)",
   } as const;
 }
 
 function messageColor(status: UserActionState["status"]) {
   return status === "error"
-    ? "var(--flag)"
+    ? "var(--danger)"
     : status === "ok"
-      ? "var(--good, var(--ink-2))"
+      ? "var(--ok)"
       : "var(--ink-2)";
 }
 

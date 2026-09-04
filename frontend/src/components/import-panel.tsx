@@ -59,14 +59,16 @@ export function ImportPanel({ datasets }: { datasets: DatasetInfo[] }) {
 
   return (
     <section
-      className="border"
+      className="border backdrop-blur-md"
       style={{
         background: "var(--surface)",
         borderColor: "var(--line)",
         borderRadius: "var(--radius)",
+        boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37), inset 0 1px 0 0 rgba(255, 255, 255, 0.08)",
+        overflow: "hidden",
       }}
     >
-      <header className="border-b px-4 py-2.5" style={{ borderColor: "var(--line)" }}>
+      <header className="border-b px-4 py-2.5" style={{ borderColor: "var(--line)", background: "rgba(255, 255, 255, 0.015)" }}>
         <h2 className="text-[13px] font-semibold" style={{ color: "var(--ink)" }}>
           Upload a source file
         </h2>
@@ -81,16 +83,17 @@ export function ImportPanel({ datasets }: { datasets: DatasetInfo[] }) {
             id="dataset"
             value={dataset}
             onChange={(e) => setDataset(e.target.value)}
-            className="w-full border px-2 py-1.5 text-[12.5px]"
+            className="w-full border px-3 py-2 text-[12.5px] cursor-pointer"
             style={{
               borderRadius: "var(--radius)",
               borderColor: "var(--line)",
-              background: "var(--surface)",
+              background: "var(--surface-2)",
               color: "var(--ink)",
+              backdropFilter: "blur(12px)",
             }}
           >
             {datasets.map((d) => (
-              <option key={d.dataset} value={d.dataset}>
+              <option key={d.dataset} value={d.dataset} style={{ background: "#0f121a", color: "var(--ink)" }}>
                 {d.dataset}
               </option>
             ))}
@@ -115,7 +118,7 @@ export function ImportPanel({ datasets }: { datasets: DatasetInfo[] }) {
             style={{
               borderRadius: "var(--radius)",
               borderColor: "var(--line)",
-              background: "var(--surface)",
+              background: "var(--surface-2)",
               color: "var(--ink)",
             }}
           />
@@ -125,12 +128,13 @@ export function ImportPanel({ datasets }: { datasets: DatasetInfo[] }) {
           type="button"
           onClick={upload}
           disabled={!file || busy}
-          className="flex items-center justify-center gap-2 whitespace-nowrap px-3 py-2 text-[12.5px] font-medium transition-colors duration-100 active:translate-y-px"
+          className="flex items-center justify-center gap-2 whitespace-nowrap px-3 py-2.5 text-[12.5px] font-medium transition-all duration-150 active:translate-y-px"
           style={{
             borderRadius: "var(--radius)",
-            background: !file || busy ? "var(--surface-2)" : "var(--ink)",
-            color: !file || busy ? "var(--ink-3)" : "var(--surface)",
+            background: !file || busy ? "var(--surface-2)" : "var(--flag)",
+            color: !file || busy ? "var(--ink-3)" : "#ffffff",
             cursor: !file || busy ? "not-allowed" : "pointer",
+            boxShadow: !file || busy ? "none" : "0 4px 14px rgba(0, 112, 243, 0.35)",
           }}
         >
           {busy ? (
@@ -143,8 +147,12 @@ export function ImportPanel({ datasets }: { datasets: DatasetInfo[] }) {
 
         {error && (
           <p
-            className="border-l-2 py-1 pl-2.5 text-[12px]"
-            style={{ borderColor: "var(--flag)", color: "var(--ink-2)" }}
+            className="border-l-2 py-1.5 pl-3 text-[12px] rounded-r-[var(--radius)]"
+            style={{
+              borderColor: "var(--danger)",
+              background: "var(--danger-wash)",
+              color: "var(--danger)",
+            }}
           >
             {error}
           </p>
@@ -152,21 +160,27 @@ export function ImportPanel({ datasets }: { datasets: DatasetInfo[] }) {
 
         {result && (
           <div
-            className="border-l-2 py-1.5 pl-2.5"
+            className="border-l-2 py-1.5 pl-3 rounded-r-[var(--radius)]"
             style={{
               borderColor:
                 result.status === "completed"
                   ? "var(--ok)"
                   : result.status === "duplicate"
                     ? "var(--warn)"
-                    : "var(--flag)",
+                    : "var(--danger)",
+              background:
+                result.status === "completed"
+                  ? "var(--ok-wash)"
+                  : result.status === "duplicate"
+                    ? "var(--warn-wash)"
+                    : "var(--danger-wash)",
             }}
           >
             <p className="text-[12.5px] font-medium" style={{ color: "var(--ink)" }}>
               {result.filename} — {result.status}
             </p>
             {result.error ? (
-              <p className="mt-0.5 text-[12px]" style={{ color: "var(--ink-2)" }}>
+              <p className="mt-0.5 text-[12px]" style={{ color: "var(--danger)" }}>
                 {result.error}
               </p>
             ) : (
@@ -180,7 +194,7 @@ export function ImportPanel({ datasets }: { datasets: DatasetInfo[] }) {
               <dl className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
                 {[...byCode.entries()].map(([code, count]) => (
                   <div key={code} className="flex items-baseline gap-1.5">
-                    <dt className="num text-[11px]" style={{ color: "var(--flag)" }}>
+                    <dt className="num text-[11px]" style={{ color: "var(--danger)" }}>
                       {code}
                     </dt>
                     <dd className="num text-[11.5px]" style={{ color: "var(--ink-2)" }}>

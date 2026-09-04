@@ -46,7 +46,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex min-h-[100dvh] flex-col">
       <header
-        className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-4 border-b px-4 sm:gap-6"
+        className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-4 border-b px-4 sm:gap-6 backdrop-blur-md"
         style={{ background: "var(--surface)", borderColor: "var(--line)" }}
       >
         <Link href="/overview" className="flex shrink-0 items-center gap-2 whitespace-nowrap">
@@ -69,7 +69,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <Link
               key={item.href}
               href={item.href}
-              className="whitespace-nowrap px-2.5 py-1 text-[13px] transition-colors duration-100"
+              className="whitespace-nowrap px-2.5 py-1 text-[13px] transition-colors duration-100 hover:bg-[rgba(255,255,255,0.06)] hover:text-[var(--ink)]"
               style={{ color: "var(--ink-2)", borderRadius: "var(--radius)" }}
             >
               {item.label}
