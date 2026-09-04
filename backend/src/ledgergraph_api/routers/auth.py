@@ -266,7 +266,10 @@ async def me(user: CurrentUser) -> UserDTO:
 
 @router.get("/users", response_model=list[UserDTO], summary="List users (controller+)")
 async def list_users(_: CanControl) -> list[UserDTO]:
-    return [_user_dto(u) for u in await get_repository().list_users()]
+    # Active accounts only. A deactivated user is a soft delete - the row
+    # survives so the audit events it authored still resolve to a name, but
+    # it has no place in a management list of who can sign in.
+    return [_user_dto(u) for u in await get_repository().list_users() if u.is_active]
 
 
 @router.post("/users", response_model=UserDTO,
@@ -347,6 +350,53 @@ async def set_user_role(
         actor_role=actor.role.value,
         detail=(f"role changed from {previous.value} to {body.role.value} "
                 f"by {actor.email}"),
+    ))
+    return _user_dto(updated)
+
+
+@router.post("/users/{user_id}/deactivate", response_model=UserDTO,
+             summary="Deactivate a user (admin)")
+async def deactivate_user(user_id: str, actor: CanAdmin) -> UserDTO:
+    """Soft-delete an account. Admin only.
+
+    A deactivated user cannot sign in (`login` and `refresh` both refuse an
+    inactive account) and drops off the Users list, but the row is kept -
+    hard-deleting it would orphan the audit events it authored, and an
+    audit trail with holes in it is worse than none. Reactivation is
+    deliberately not exposed here; restoring an account is a database
+    operation, not a button, so a mis-click cannot silently let someone
+    back in.
+
+    Two guards:
+
+    * an admin cannot deactivate *themselves* - the last admin locking
+      their own account out would leave no one able to manage users;
+    * an already-inactive account is an idempotent no-op that writes no
+      second audit event.
+    """
+    repo = get_repository()
+    target = await repo.get_user(user_id)
+    if target is None:
+        raise ApiError("USER_NOT_FOUND", "no user with that id",
+                       status_code=status.HTTP_404_NOT_FOUND)
+
+    if target.user_id == actor.user_id:
+        raise ApiError(
+            "CANNOT_DEACTIVATE_SELF",
+            "an admin cannot deactivate their own account; ask another admin",
+            status_code=status.HTTP_409_CONFLICT,
+        )
+
+    if not target.is_active:
+        return _user_dto(target)
+
+    updated = await repo.set_user_active(user_id, False)
+    assert updated is not None  # existence was checked above
+    await repo.add_audit(new_audit(
+        entity_type="user", entity_id=updated.user_id, action="deactivated",
+        actor_type="user", actor_id=actor.user_id, actor_name=actor.email,
+        actor_role=actor.role.value,
+        detail=f"account {updated.email} deactivated by {actor.email}",
     ))
     return _user_dto(updated)
 

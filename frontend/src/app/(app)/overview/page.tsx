@@ -163,6 +163,14 @@ export default async function OverviewPage() {
             <span className="num">{overview.rulesetVersion}</span>
             {overview.completedAt ? ` · ${formatInstant(overview.completedAt)}` : null}
           </p>
+          {/* One workspace, one set of books. New accounts land on the same
+              reconciliation everyone else sees - roles govern who may act,
+              not what they can read. Stated so shared history reads as the
+              design rather than a leak. */}
+          <p className="mt-1 text-[11.5px]" style={{ color: "var(--ink-3)" }}>
+            Shared workspace — every account sees the same books; your role decides
+            what you can act on.
+          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

@@ -196,6 +196,7 @@ class DecisionAction(StrEnum):
     # Account lifecycle, recorded in the same audit table.
     REGISTERED = "registered"
     REFRESH_REUSE_DETECTED = "refresh_reuse_detected"
+    DEACTIVATED = "deactivated"
 
 
 class ActorType(StrEnum):

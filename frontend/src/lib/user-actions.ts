@@ -2,7 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 
-import { ApiError, createUser, updateUserRole, type UserRole } from "./api";
+import {
+  ApiError,
+  createUser,
+  deactivateUser,
+  updateUserRole,
+  type UserRole,
+} from "./api";
 
 /**
  * Admin user management.
@@ -67,6 +73,28 @@ export async function changeRoleAction(
     }
     revalidatePath("/users");
     return { status: "ok", message: `${user.email} is now ${user.role}.` };
+  } catch (error) {
+    if (error instanceof ApiError) return { status: "error", message: error.message };
+    throw error;
+  }
+}
+
+export async function deactivateUserAction(
+  _prev: UserActionState,
+  form: FormData,
+): Promise<UserActionState> {
+  const id = String(form.get("userId") ?? "");
+  if (!id) {
+    return { status: "error", message: "Missing user." };
+  }
+
+  try {
+    const user = await deactivateUser(id);
+    if (user === null) {
+      return { status: "error", message: "That user no longer exists." };
+    }
+    revalidatePath("/users");
+    return { status: "ok", message: `${user.email} can no longer sign in.` };
   } catch (error) {
     if (error instanceof ApiError) return { status: "error", message: error.message };
     throw error;

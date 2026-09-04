@@ -371,6 +371,11 @@ export const updateUserRole = (id: string, role: UserRole) =>
     body: JSON.stringify({ role }),
   });
 
+// Soft delete: the account can no longer sign in and leaves the list, but
+// the row stays so its audit history still resolves to a name.
+export const deactivateUser = (id: string) =>
+  request<User>(`/v1/auth/users/${id}/deactivate`, { method: "POST" });
+
 // --------------------------------------------------------------------------
 // Health
 // --------------------------------------------------------------------------

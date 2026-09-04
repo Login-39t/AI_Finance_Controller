@@ -192,6 +192,7 @@ class Repository(Protocol):
     async def find_user_by_email(self, email: str) -> User | None: ...
     async def list_users(self) -> list[User]: ...
     async def update_user_role(self, user_id: str, role: UserRole) -> User | None: ...
+    async def set_user_active(self, user_id: str, is_active: bool) -> User | None: ...
     async def store_refresh(self, *, user_id: str, digest: str, family_id: str,
                        expires_at: datetime) -> RefreshToken: ...
     async def find_refresh(self, digest: str) -> RefreshToken | None: ...
@@ -352,6 +353,13 @@ class InMemoryRepository:
         if user is None:
             return None
         user.role = role
+        return user
+
+    async def set_user_active(self, user_id: str, is_active: bool) -> User | None:
+        user = self._users.get(user_id)
+        if user is None:
+            return None
+        user.is_active = is_active
         return user
 
     # -- refresh tokens ---------------------------------------------------

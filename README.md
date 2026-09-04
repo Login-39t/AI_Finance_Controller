@@ -33,6 +33,13 @@ role is listed on the login page under **Role accounts**, sharing the
 password `tallyproof-demo-2026`, so each role can be seen from the inside
 without provisioning anyone.
 
+TallyProof is a **shared reconciliation workspace**: every account works
+the same set of books, so a new sign-in sees the imports, runs, and cases
+that are already there. That is deliberate — reconciliation is a team
+activity, and the roles govern *who may decide*, not who may look. An admin
+can deactivate an account from the **Users** page (a soft delete that
+blocks sign-in and keeps the audit trail intact).
+
 ---
 
 ## Repository layout

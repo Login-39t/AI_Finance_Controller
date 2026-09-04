@@ -858,6 +858,18 @@ class PostgresRepository:
         # holds - and None if the id named no one (the UPDATE hit 0 rows).
         return await self.get_user(user_id)
 
+    async def set_user_active(self, user_id: str, is_active: bool) -> User | None:
+        if not _is_uuid(user_id):
+            return None
+        async with self._sessionmaker() as session:
+            await session.execute(
+                update(t.users)
+                .where(t.users.c.id == uuid.UUID(user_id))
+                .values(is_active=is_active)
+            )
+            await session.commit()
+        return await self.get_user(user_id)
+
     # -- refresh tokens ----------------------------------------------------
 
     async def store_refresh(

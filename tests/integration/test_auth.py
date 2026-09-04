@@ -650,3 +650,82 @@ async def test_creating_a_user_with_a_weak_password_is_refused(anonymous):
         "fullName": "Weak", "role": "analyst",
     })
     assert response.status_code == 422
+
+
+# --------------------------------------------------------------------------
+# Deactivation: a soft delete that blocks sign-in and keeps the audit trail
+# --------------------------------------------------------------------------
+
+async def test_an_admin_can_deactivate_a_user(anonymous):
+    admin = await _login(anonymous, "admin")
+    analyst_id = await _user_id(anonymous, admin, "analyst@tallyproof.dev")
+
+    response = await anonymous.post(
+        f"/v1/auth/users/{analyst_id}/deactivate", headers=_as(admin),
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["isActive"] is False
+
+    # It drops off the Users list - the list is who can sign in.
+    users = (await anonymous.get("/v1/auth/users", headers=_as(admin))).json()
+    assert all(u["email"] != "analyst@tallyproof.dev" for u in users)
+
+    # But the row survives, so the audit event it now carries resolves.
+    events = await get_repository().audit_for(analyst_id)
+    gone = [e for e in events if e.action == "deactivated"]
+    assert len(gone) == 1
+    assert gone[0].actor_name == "admin@tallyproof.dev"
+
+    # And it can no longer sign in.
+    login = await anonymous.post("/v1/auth/login", json={
+        "email": "analyst@tallyproof.dev", "password": DEMO_PASSWORD,
+    })
+    assert login.status_code == 401
+
+
+async def test_a_non_admin_cannot_deactivate(anonymous):
+    controller = await _login(anonymous, "controller")
+    analyst_id = await _user_id(
+        anonymous, await _login(anonymous, "admin"), "analyst@tallyproof.dev"
+    )
+    response = await anonymous.post(
+        f"/v1/auth/users/{analyst_id}/deactivate", headers=_as(controller),
+    )
+    assert response.status_code == 403
+
+
+async def test_an_admin_cannot_deactivate_themselves(anonymous):
+    """The last admin locking their own account out leaves no way back in."""
+    admin = await _login(anonymous, "admin")
+    admin_id = await _user_id(anonymous, admin, "admin@tallyproof.dev")
+    response = await anonymous.post(
+        f"/v1/auth/users/{admin_id}/deactivate", headers=_as(admin),
+    )
+    assert response.status_code == 409
+    assert response.json()["code"] == "CANNOT_DEACTIVATE_SELF"
+
+
+async def test_deactivating_an_unknown_user_is_404(anonymous):
+    admin = await _login(anonymous, "admin")
+    response = await anonymous.post(
+        "/v1/auth/users/usr_nobody/deactivate", headers=_as(admin),
+    )
+    assert response.status_code == 404
+
+
+async def test_deactivating_twice_writes_one_audit_event(anonymous):
+    """Idempotent: re-deactivating an inactive account adds no second event."""
+    admin = await _login(anonymous, "admin")
+    reviewer_id = await _user_id(anonymous, admin, "reviewer@tallyproof.dev")
+
+    first = await anonymous.post(
+        f"/v1/auth/users/{reviewer_id}/deactivate", headers=_as(admin),
+    )
+    assert first.status_code == 200
+    second = await anonymous.post(
+        f"/v1/auth/users/{reviewer_id}/deactivate", headers=_as(admin),
+    )
+    assert second.status_code == 200
+
+    events = await get_repository().audit_for(reviewer_id)
+    assert len([e for e in events if e.action == "deactivated"]) == 1

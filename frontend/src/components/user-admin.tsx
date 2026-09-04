@@ -9,6 +9,7 @@ import {
   type UserActionState,
   changeRoleAction,
   createUserAction,
+  deactivateUserAction,
 } from "@/lib/user-actions";
 import { Select } from "@/components/select";
 
@@ -141,6 +142,37 @@ function RoleForm({ user, isSelf }: { user: User; isSelf: boolean }) {
   );
 }
 
+function DeactivateForm({ user }: { user: User }) {
+  const [state, action] = useActionState(deactivateUserAction, INITIAL);
+  return (
+    <form action={action} className="flex items-center gap-2">
+      <input type="hidden" name="userId" value={user.id} />
+      <button
+        type="submit"
+        onClick={(e) => {
+          // Not undoable from the UI, so make the click deliberate.
+          if (!window.confirm(`Deactivate ${user.email}? They will no longer be able to sign in.`)) {
+            e.preventDefault();
+          }
+        }}
+        className="cursor-pointer px-2 py-1 text-[12px] transition-colors duration-100"
+        style={{
+          borderRadius: "var(--radius)",
+          background: "var(--danger-wash)",
+          color: "var(--danger)",
+        }}
+      >
+        Deactivate
+      </button>
+      {state.status === "error" && state.message && (
+        <span className="text-[11px]" style={{ color: "var(--danger)" }}>
+          {state.message}
+        </span>
+      )}
+    </form>
+  );
+}
+
 export function UserAdmin({ users, currentUserId }: { users: User[]; currentUserId: string }) {
   return (
     <div className="mx-auto grid max-w-[1100px] gap-6 px-4 py-6 lg:grid-cols-[320px_1fr]">
@@ -175,7 +207,10 @@ export function UserAdmin({ users, currentUserId }: { users: User[]; currentUser
                 <div className="num truncate text-[12.5px]" style={{ color: "var(--ink)" }}>{u.email}</div>
                 <div className="truncate text-[11.5px]" style={{ color: "var(--ink-3)" }}>{u.fullName}</div>
               </div>
-              <RoleForm user={u} isSelf={u.id === currentUserId} />
+              <div className="flex items-center gap-2">
+                <RoleForm user={u} isSelf={u.id === currentUserId} />
+                {u.id !== currentUserId && <DeactivateForm user={u} />}
+              </div>
             </li>
           ))}
         </ul>
