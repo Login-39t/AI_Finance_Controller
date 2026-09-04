@@ -123,7 +123,11 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Everything except Next's own assets and the favicon. Health of the
-  // API is not this app's concern; the pages handle that.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // Everything except Next's own assets, the favicon, and the generated
+  // metadata routes (og/twitter cards, icons, robots, sitemap) - those are
+  // public by nature, and a crawler fetching the social card must not be
+  // bounced to /login.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|opengraph-image|twitter-image|icon|apple-icon|manifest.webmanifest|robots.txt|sitemap.xml).*)",
+  ],
 };
