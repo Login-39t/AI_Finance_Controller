@@ -109,14 +109,18 @@ services:
       - key: BASE_CURRENCY
         value: INR
 
-      # AI is off by default. Every deterministic finding stands without
-      # it, so a missing key degrades investigations rather than the
-      # reconciliation. To turn it on: set AI_ENABLED=true in the Render
-      # dashboard and provide AI_API_KEY (a free Groq key from
-      # console.groq.com/keys). Provider and model below are the verified
-      # working pair; boot stays clean while AI_ENABLED is false.
+      # Grounded AI investigation is ON for the demo. The deterministic
+      # findings stand with or without it; this only lights up the
+      # Investigate button on a case. Provider and model below are the
+      # verified working pair.
+      #
+      # REQUIRED when this is true: AI_API_KEY must be set in the Render
+      # dashboard (it is sync:false, so it never lives in git) - a free
+      # Groq key from console.groq.com/keys. config.py refuses to boot with
+      # AI_ENABLED=true and no key, so set the key first, then sync this
+      # Blueprint. Set AI_ENABLED back to "false" to run without it.
       - key: AI_ENABLED
-        value: "false"
+        value: "true"
       - key: AI_PROVIDER
         value: groq
       - key: AI_MODEL
