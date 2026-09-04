@@ -15,13 +15,14 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
 const C = {
-  bg: "#0f1319",
-  ink: "#e4e9ef",
-  ink2: "#a5b1c0",
-  ink3: "#7d8a9c",
-  flag: "#e58274",
-  ok: "#5cb897",
-  line: "#2a3440",
+  bg: "#07080c",
+  surface: "#0f121a",
+  ink: "#f8fafc",
+  ink2: "#94a3b8",
+  ink3: "#64748b",
+  flag: "#0070f3",
+  ok: "#10b981",
+  line: "#1e2638",
 };
 
 async function font(weight: 400 | 600, family: "ibm-plex-sans" | "ibm-plex-mono") {
@@ -85,7 +86,7 @@ export default async function Image() {
               height: 26,
               borderRadius: 3,
               border: `3px solid ${C.flag}`,
-              background: "#151b23",
+              background: C.surface,
             }}
           />
           <div style={{ fontSize: 34, fontWeight: 600, letterSpacing: -0.5 }}>LedgerGraph</div>
