@@ -46,15 +46,23 @@ export async function middleware(request: NextRequest) {
   const access = request.cookies.get(ACCESS_COOKIE)?.value;
   const refresh = request.cookies.get(REFRESH_COOKIE)?.value;
 
-  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
-    // Already signed in and asking for an auth page: send them on.
-    // Never do this for /session-expired, which exists precisely to be
-    // reached while a (dead) cookie is still set.
-    if (access && (pathname.startsWith("/login") || pathname.startsWith("/register"))) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/exceptions";
-      url.search = "";
-      return NextResponse.redirect(url);
+  // `/` is the public marketing landing page; it must be matched exactly,
+  // since every path starts with "/".
+  const isLanding = pathname === "/";
+  if (isLanding || PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
+    // A signed-in visitor has no use for the landing or the auth pages;
+    // send them into the app. Never redirect /session-expired, which
+    // exists precisely to be reached while a (dead) cookie is still set.
+    if (access) {
+      const to = isLanding ? "/overview" : null;
+      const authPage = pathname.startsWith("/login") || pathname.startsWith("/register");
+      const dest = to ?? (authPage ? "/exceptions" : null);
+      if (dest) {
+        const url = request.nextUrl.clone();
+        url.pathname = dest;
+        url.search = "";
+        return NextResponse.redirect(url);
+      }
     }
     return NextResponse.next();
   }
