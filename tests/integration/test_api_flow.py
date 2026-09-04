@@ -411,3 +411,55 @@ async def test_investigation_is_refused_cleanly_when_ai_is_disabled(
         assert response.json()["code"] == "AI_DISABLED"
     finally:
         get_settings.cache_clear()
+
+
+# --------------------------------------------------------------------------
+# Demo reset: empty the console without reinstalling
+# --------------------------------------------------------------------------
+
+async def test_admin_reset_clears_imports_and_runs(anonymous, dataset):
+    admin = await _sign_in(anonymous, "admin")
+    await _upload_all(admin, dataset)
+    await _run_to_completion(admin)
+
+    # Populated: imports, a run, and a latest-run pointer all resolve.
+    assert (await admin.get("/v1/imports")).json()
+    assert (await admin.get("/v1/reconciliation-runs")).json()
+    assert (await admin.get("/v1/reconciliation-runs/latest")).status_code == 200
+
+    reset = await admin.post("/v1/admin/reset")
+    assert reset.status_code == 200, reset.text
+    assert reset.json()["reset"] is True
+
+    # Empty: lists are bare and the queue is a 404 again, not zeroes.
+    assert (await admin.get("/v1/imports")).json() == []
+    assert (await admin.get("/v1/reconciliation-runs")).json() == []
+    assert (await admin.get("/v1/reconciliation-runs/latest")).status_code == 404
+
+    # Accounts survive the wipe - the admin can still act.
+    assert (await admin.get("/v1/auth/users")).status_code == 200
+
+
+async def test_reset_requires_admin(client):
+    # `client` is signed in as a controller - decides cases, does not
+    # get to erase the ledger.
+    assert (await client.post("/v1/admin/reset")).status_code == 403
+
+
+async def test_reset_is_refused_in_production(anonymous, monkeypatch):
+    from ledgergraph_api.config import get_settings
+
+    admin = await _sign_in(anonymous, "admin")
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    # Production refuses both an in-memory store and seeded demo users, so
+    # set the values that let settings load at all - the point of the test
+    # is the reset guard, not those validators.
+    monkeypatch.setenv("PERSISTENCE", "postgres")
+    monkeypatch.setenv("SEED_DEMO_USERS", "false")
+    get_settings.cache_clear()
+    try:
+        response = await admin.post("/v1/admin/reset")
+        assert response.status_code == 403
+        assert response.json()["code"] == "RESET_FORBIDDEN_IN_PRODUCTION"
+    finally:
+        get_settings.cache_clear()

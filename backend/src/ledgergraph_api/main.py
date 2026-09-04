@@ -25,7 +25,7 @@ from . import __version__
 from .config import Settings, get_settings
 from .db import dispose_engine, get_sessionmaker
 from .errors import register_error_handlers
-from .routers import auth, exceptions, health, imports, matches, reports, runs
+from .routers import admin, auth, exceptions, health, imports, matches, reports, runs
 from .store import set_repository
 
 
@@ -126,6 +126,7 @@ def create_app() -> FastAPI:
     app.include_router(exceptions.router)
     app.include_router(matches.router)
     app.include_router(reports.router)
+    app.include_router(admin.router)
 
     return app
 

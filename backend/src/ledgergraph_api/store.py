@@ -193,6 +193,17 @@ class Repository(Protocol):
     async def list_users(self) -> list[User]: ...
     async def update_user_role(self, user_id: str, role: UserRole) -> User | None: ...
     async def set_user_active(self, user_id: str, is_active: bool) -> User | None: ...
+
+    async def reset_reconciliation_data(self) -> None:
+        """Delete every import, run, and everything derived from them.
+
+        A demo-reset: imports, transactions, runs, groups, cases,
+        investigations, decisions, and the audit trail all go, so a
+        recording can start from an empty console. Accounts, roles, and
+        policies are kept - the point is a clean set of books, not a fresh
+        install. Not exposed under `ENVIRONMENT=production`.
+        """
+        ...
     async def store_refresh(self, *, user_id: str, digest: str, family_id: str,
                        expires_at: datetime) -> RefreshToken: ...
     async def find_refresh(self, digest: str) -> RefreshToken | None: ...
@@ -361,6 +372,17 @@ class InMemoryRepository:
             return None
         user.is_active = is_active
         return user
+
+    async def reset_reconciliation_data(self) -> None:
+        # Keep _users and _refresh; drop the reconciliation working set.
+        self._imports.clear()
+        self._transactions.clear()
+        self._runs.clear()
+        self._cases.clear()
+        self._groups.clear()
+        self._investigations.clear()
+        self._decisions.clear()
+        self._audit.clear()
 
     # -- refresh tokens ---------------------------------------------------
 

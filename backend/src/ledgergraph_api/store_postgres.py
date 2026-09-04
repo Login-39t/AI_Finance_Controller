@@ -56,7 +56,7 @@ from ledgergraph_ai.client import InvestigationOutcome
 from ledgergraph_domain.canonical import CanonicalTransaction
 from ledgergraph_domain.enums import ImportStatus, RunStatus, UserRole
 from ledgergraph_reconciliation.models import ExceptionCase, MatchGroup, RunResult
-from sqlalchemy import and_, delete, insert, or_, select, update
+from sqlalchemy import and_, delete, insert, or_, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -869,6 +869,32 @@ class PostgresRepository:
             )
             await session.commit()
         return await self.get_user(user_id)
+
+    # Every table that holds imported or reconciled data - the whole
+    # working set - but not organizations, users, refresh_tokens, policies,
+    # or fee_schedules. One TRUNCATE ... CASCADE empties them together and
+    # RESTART IDENTITY resets any serial counters, so the reset is total.
+    _RESET_TABLES = (
+        "imports", "import_rejections", "source_files", "source_records",
+        "canonical_transactions", "dataset_snapshots",
+        "reconciliation_runs", "run_metrics", "reconciliation_groups",
+        "reconciliation_links", "reconciliation_evidence",
+        "exception_cases", "exception_case_transactions", "match_candidates",
+        "ai_investigations", "case_comments", "decision_audit_events",
+        "ground_truth_links", "idempotency_keys",
+    )
+
+    async def reset_reconciliation_data(self) -> None:
+        async with self._sessionmaker() as session:
+            await session.execute(text(
+                f"TRUNCATE TABLE {', '.join(self._RESET_TABLES)} "
+                f"RESTART IDENTITY CASCADE"
+            ))
+            await session.commit()
+        # Drop the in-process caches too, or a deleted run's result could
+        # still be attached to a later read.
+        self._results.clear()
+        self._investigations.clear()
 
     # -- refresh tokens ----------------------------------------------------
 
