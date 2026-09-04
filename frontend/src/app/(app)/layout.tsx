@@ -46,38 +46,42 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex min-h-[100dvh] flex-col">
       <header
-        className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-4 border-b px-4 sm:gap-6 backdrop-blur-md"
+        className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between gap-4 border-b px-4 sm:gap-6 backdrop-blur-md"
         style={{ background: "var(--surface)", borderColor: "var(--line)" }}
       >
-        <Link href="/overview" className="flex shrink-0 items-center gap-2 whitespace-nowrap">
-          <GraphIcon size={17} weight="duotone" style={{ color: "var(--flag)" }} />
-          <span
-            className="text-[13.5px] font-semibold tracking-tight"
-            style={{ color: "var(--ink)" }}
-          >
-            LedgerGraph
-          </span>
-        </Link>
+        <div className="flex flex-1 items-center justify-start">
+          <Link href="/overview" className="flex shrink-0 items-center gap-2 whitespace-nowrap">
+            <GraphIcon size={17} weight="duotone" style={{ color: "var(--flag)" }} />
+            <span
+              className="text-[13.5px] font-semibold tracking-tight"
+              style={{ color: "var(--ink)" }}
+            >
+              LedgerGraph
+            </span>
+          </Link>
+        </div>
 
-        {/* No overflow-x-auto here. It let the nav clip silently on a
-            narrow viewport - the last item became a scrollbar rather than
-            a link, which reads as a broken header rather than a
-            responsive one. The nav keeps its space; the run context and
-            the user block give theirs up first. */}
-        <nav className="flex shrink-0 items-center gap-1">
+        <nav
+          className="flex shrink-0 items-center justify-center gap-1 p-1"
+          style={{
+            background: "rgba(255, 255, 255, 0.03)",
+            borderRadius: "var(--radius)",
+            border: "1px solid var(--line-soft)",
+          }}
+        >
           {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className="whitespace-nowrap px-2.5 py-1 text-[13px] transition-colors duration-100 hover:bg-[rgba(255,255,255,0.06)] hover:text-[var(--ink)]"
-              style={{ color: "var(--ink-2)", borderRadius: "var(--radius)" }}
+              className="whitespace-nowrap px-3 py-1 text-[13px] font-medium transition-all duration-150 hover:bg-[rgba(255,255,255,0.06)] hover:text-[var(--ink)]"
+              style={{ color: "var(--ink-2)", borderRadius: "calc(var(--radius) - 3px)" }}
             >
               {item.label}
             </Link>
           ))}
         </nav>
 
-        <div className="ml-auto flex min-w-0 items-center gap-4 whitespace-nowrap">
+        <div className="flex flex-1 min-w-0 items-center justify-end gap-4 whitespace-nowrap">
           {run && (
             <>
               <span className="label hidden lg:inline">Run</span>

@@ -99,7 +99,7 @@ export default async function CaseDetailPage({
         <dl className="mt-3 flex flex-wrap items-end gap-x-9 gap-y-3">
           <div>
             <dt className="label">Amount at risk</dt>
-            <dd className="mt-0.5">
+            <dd className="mt-0.5" style={{ color: "var(--danger)" }}>
               <Money
                 minor={packet.amountAtRiskMinor}
                 currency={packet.currency}

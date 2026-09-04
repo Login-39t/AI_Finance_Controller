@@ -203,7 +203,7 @@ export default async function OverviewPage() {
             label="Exposure still open"
             value={formatMinor(decisions.openValueMinor)}
             sub={`${decisions.open} of ${overview.exceptions} cases undecided`}
-            tone="flag"
+            tone="danger"
           />
           <Stat
             label="Needs a controller"
@@ -235,7 +235,7 @@ export default async function OverviewPage() {
               {
                 key: "open",
                 value: decisions.open,
-                color: "var(--flag)",
+                color: "var(--danger)",
                 title: `${decisions.open} undecided`,
               },
               {

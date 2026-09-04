@@ -102,7 +102,7 @@ export default async function ExceptionsPage({
         </div>
 
         <dl className="flex flex-wrap items-end gap-x-8 gap-y-3">
-          <Stat label="Exposure shown" value={formatMinor(exposure.toString())} tone="flag" />
+          <Stat label="Exposure shown" value={formatMinor(exposure.toString())} tone="danger" />
           <Stat
             label="Critical"
             value={String(criticalCount)}
@@ -186,7 +186,7 @@ export default async function ExceptionsPage({
                       {EXCEPTION_LABEL[c.caseType] ?? c.caseType}
                     </Link>
                   </td>
-                  <td className="py-[7px] pr-4 text-right align-middle">
+                  <td className="py-[7px] pr-4 text-right align-middle" style={{ color: "var(--danger)" }}>
                     <Money
                       minor={c.amountAtRiskMinor}
                       currency={c.currency}
